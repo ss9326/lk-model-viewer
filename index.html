@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Lenskart Model View</title>
+        <meta charset="utf-8">
+        <meta name="viewport"
+              content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+        <link rel="stylesheet" href="style.css">
+
+        <script type="module"
+                src="/libs/model-viewer.min.js"></script>
+        <script src="https://unpkg.com/focus-visible@5.0.2/dist/focus-visible.js" defer></script>
+        <style>
+            #skybox-controls {
+                position: absolute;
+                left: 150px;                
+                top: 10px;
+                z-index: 1;
+                display: flex;
+                align-items: start;
+                flex-direction: column;
+                gap: 10px;                
+            }
+
+            #skybox-name {
+                color: white;
+                background-color: rgba(0,0,0,0.5);
+                padding: 2px 5px;
+                border-radius: 3px;
+            }
+
+            #model-controls {
+                position: absolute;
+                left: 10px;    
+                top: 10px;
+                z-index: 1;
+                display: flex;
+                align-items: start;
+                flex-direction: column;
+                gap: 10px;
+            }            
+
+            #model-name {
+                color: white;
+                background-color: rgba(0,0,0,0.5);
+                padding: 2px 5px;
+                border-radius: 3px;
+            }
+
+            #sku-id-input {
+                margin-right: 5px;
+            }            
+        </style>
+    </head>
+    <body>
+        <div id="model-controls">
+            <input type="text" id="sku-id-input" placeholder="Enter SKU ID">
+            <button id="change-model-button">Change Model</button>
+            <div id="model-name"></div>            
+        </div>
+        <div id="skybox-controls">
+            <button id="change-skybox-button">Change Skybox</button>
+            <div id="skybox-name"></div>
+        </div>
+
+        <div id="card">
+            <model-viewer
+                    id="model-viewer"
+                    alt="A 3D model of a Eyeglass/Sunglass"
+                    shadow-intensity="1"
+                    exposure="0.9"
+                    skybox-image="./env/bg_brown.jpg"
+                    environment-image="./env/env_2.hdr"
+                    tone-mapping="aces"
+                    camera-controls
+                    camera-target="0m 0m 0m"
+                    touch-action="none"
+                    auto-rotate="false">
+            </model-viewer>            
+        </div>
+    </body>
+
+    <script type="text/javascript">
+            const skyboxImages = [
+                null,                
+                "./env/bg_black.jpg",
+                "./env/bg_brown.jpg",
+                "./env/bg_grey.jpg",
+                "https://res.cloudinary.com/kumarmk/image/upload/v1764930082/HDR_029_Sky_Cloudy_Bg_j4r6vc.jpg",                
+            ];
+            let currentSkybox = 0;
+
+            const assets = [
+                "./assets/206272.glb",
+                "./assets/238526.glb",                
+                "./assets/238534.glb",
+                "./assets/238583.glb",
+                "./assets/238647.glb",
+                "./assets/238660.glb",
+                "./assets/239174.glb",                
+                "./assets/239205.glb",
+                "./assets/239212.glb",               
+                "./assets/239213.glb",
+            ]
+            let currentAsset = 0;
+
+            function updateSkybox() {
+                const skyboxUrl = skyboxImages[currentSkybox];
+                modelViewer.setAttribute('skybox-image', skyboxUrl);
+                skyboxName.textContent = skyboxUrl ? skyboxUrl.split('/').pop().split('.')[0] : "<none>";
+            }
+
+            function setupProductUrls(modelUrl, posterUrl) {
+                const url = modelUrl ? modelUrl : assets[currentAsset];
+                if (!url) return;
+                modelName.textContent = url.split('/').pop().split('.')[0];
+                document.getElementById('model-viewer').src = url;
+                document.getElementById('model-viewer').poster = posterUrl;
+            }
+
+            function onModelChangeEvent() {
+                const skuId = skuIdInput.value.trim();
+                var modelUrl;
+                if (skuId) {
+                    modelUrl = `./assets/${skuId}.glb`;
+                } else {
+                    currentAsset = (currentAsset + 1) % assets.length;
+                    modelUrl = assets[currentAsset];               
+                }
+                setupProductUrls(modelUrl)                
+            }
+            
+            const modelViewer = document.querySelector('model-viewer');
+
+            const changeSkyboxButton = document.getElementById('change-skybox-button');
+            const skyboxName = document.getElementById('skybox-name');
+            const skuIdInput = document.getElementById('sku-id-input');
+            const modelName = document.getElementById('model-name');            
+            const changeModelButton = document.getElementById('change-model-button');
+
+            skuIdInput.style.display = 'none';
+
+            changeSkyboxButton.addEventListener('click', () => {
+                currentSkybox = (currentSkybox + 1) % skyboxImages.length;
+                updateSkybox();
+            });
+
+            changeModelButton.addEventListener('click', () => {
+                onModelChangeEvent();
+            });
+            skuIdInput.addEventListener("keyup", ({key}) => {
+                if (key === "Enter") {
+                    onModelChangeEvent();
+                }
+            })
+
+            updateSkybox();
+            setupProductUrls()            
+    </script>
+</html>
+
