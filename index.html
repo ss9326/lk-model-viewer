@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Lenskart Model View</title>
+        <meta charset="utf-8">
+        <meta name="viewport"
+              content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+
+        <script type="module"
+                src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+        <script nomodule
+                src="https://unpkg.com/@google/model-viewer/dist/model-viewer-legacy.js"></script>
+        <script src="https://unpkg.com/focus-visible@5.0.2/dist/focus-visible.js" defer></script>
+      <script type="module" crossorigin src="/assets/index-DZ8Kw2ev.js"></script>
+      <link rel="stylesheet" crossorigin href="/assets/index-2LnNSLuN.css">
+    </head>
+    <body>
+        <div id="card">
+            <model-viewer
+                    id="model-viewer"
+                    alt="A 3D model of a Eyeglass/Sunglass"
+                    shadow-intensity="1"
+                    camera-controls
+                    touch-action="none"
+                    auto-rotate>
+            </model-viewer>
+
+        </div>
+    </body>
+
+    <script type="text/javascript">
+            function setupProductUrls(modelUrl, posterUrl, coordinates) {
+                document.getElementById('model-viewer').src = modelUrl;
+                document.getElementById('model-viewer').poster = posterUrl;
+                document.getElementById('model-viewer').setAttribute("camera-target", coordinates);
+            }
+            const modelViewer = document.querySelector('model-viewer');
+            document.getElementById('model-viewer').src = "";
+    </script>
+</html>
+
