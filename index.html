@@ -6,13 +6,17 @@
         <meta name="viewport"
               content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
 
+
+        <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
+        <!--
         <script type="module"
-                src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+                src="/libs/model-viewer.min.js"></script>
         <script nomodule
                 src="https://unpkg.com/@google/model-viewer/dist/model-viewer-legacy.js"></script>
         <script src="https://unpkg.com/focus-visible@5.0.2/dist/focus-visible.js" defer></script>
-      <script type="module" crossorigin src="/assets/index-DZ8Kw2ev.js"></script>
-      <link rel="stylesheet" crossorigin href="/assets/index-2LnNSLuN.css">
+    -->
+      <script type="module" crossorigin src="/assets/main-ghxNzQXj.js"></script>
+      <link rel="stylesheet" crossorigin href="/assets/main-2LnNSLuN.css">
     </head>
     <body>
         <div id="card">
@@ -29,13 +33,15 @@
     </body>
 
     <script type="text/javascript">
-            function setupProductUrls(modelUrl, posterUrl, coordinates) {
+            function setupProductUrls(modelUrl, posterUrl, coordinates, envUrl) {
                 document.getElementById('model-viewer').src = modelUrl;
                 document.getElementById('model-viewer').poster = posterUrl;
                 document.getElementById('model-viewer').setAttribute("camera-target", coordinates);
+                document.getElementById('model-viewer').setAttribute("environment-image", envUrl);
+                //document.getElementById('model-viewer').setAttribute("environment-image", "https://res.cloudinary.com/kumarmk/image/upload/v1764930082/HDR_029_Sky_Cloudy_Bg_j4r6vc.jpg");
             }
             const modelViewer = document.querySelector('model-viewer');
-            document.getElementById('model-viewer').src = "";
+            setupProductUrls("./assets/sku_238660.glb", null, "0m 0m 0m", "./assets/env_2.hdr");
     </script>
 </html>
 
