@@ -6,43 +6,75 @@
         <meta name="viewport"
               content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
 
-
-        <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
         <!--
+        <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
+        -->
         <script type="module"
-                src="/libs/model-viewer.min.js"></script>
+                src="/lk-model-viewer/libs/model-viewer.min.js"></script>
+        <!--
         <script nomodule
                 src="https://unpkg.com/@google/model-viewer/dist/model-viewer-legacy.js"></script>
         <script src="https://unpkg.com/focus-visible@5.0.2/dist/focus-visible.js" defer></script>
-    -->
-      <script type="module" crossorigin src="/lk-model-viewer/assets/main-ghxNzQXj.js"></script>
-      <link rel="stylesheet" crossorigin href="/lk-model-viewer/assets/main-2LnNSLuN.css">
+        -->
+        <style>
+
+        </style>
+      <script type="module" crossorigin src="/lk-model-viewer/assets/main-BrX29KUY.js"></script>
+      <link rel="stylesheet" crossorigin href="/lk-model-viewer/assets/main-Bx1S8oe6.css">
     </head>
     <body>
+        <button id="change-skybox-button">Change Skybox</button>
+        <div id="skybox-name"></div>
         <div id="card">
             <model-viewer
                     id="model-viewer"
                     alt="A 3D model of a Eyeglass/Sunglass"
                     shadow-intensity="1"
+                    exposure="1.0"
+                    skybox-image="./assets/bg_brown.jpg"
+                    environment-image="./assets/env_2.hdr"
+                    tone-mapping="aces"
                     camera-controls
                     touch-action="none"
-                    auto-rotate>
-            </model-viewer>
-
+                    auto-rotate="false">
+            </model-viewer>            
         </div>
     </body>
 
     <script type="text/javascript">
+            const skyboxImages = [
+                null,                
+                "./assets/bg_black.jpg",
+                "./assets/bg_brown.jpg",
+                "./assets/bg_grey.jpg",
+                "https://res.cloudinary.com/kumarmk/image/upload/v1764930082/HDR_029_Sky_Cloudy_Bg_j4r6vc.jpg",                
+            ];
+            let currentSkybox = 0;
+
             function setupProductUrls(modelUrl, posterUrl, coordinates, envUrl) {
                 document.getElementById('model-viewer').src = modelUrl;
                 document.getElementById('model-viewer').poster = posterUrl;
                 document.getElementById('model-viewer').setAttribute("camera-target", coordinates);
-                document.getElementById('model-viewer').setAttribute("environment-image", envUrl);
-                document.getElementById('model-viewer').setAttribute("exposure", 2.5);                
-                //document.getElementById('model-viewer').setAttribute("environment-image", "https://res.cloudinary.com/kumarmk/image/upload/v1764930082/HDR_029_Sky_Cloudy_Bg_j4r6vc.jpg");
             }
             const modelViewer = document.querySelector('model-viewer');
-            setupProductUrls("./assets/sku_238660.glb", null, "0m 0m 0m", "./assets/env_2.hdr");
+            setupProductUrls("./assets/sku_238660.glb", null, "0m 0m 0m");
+
+            const changeSkyboxButton = document.getElementById('change-skybox-button');
+            const skyboxName = document.getElementById('skybox-name');
+
+            function updateSkybox() {
+                const skyboxUrl = skyboxImages[currentSkybox];
+                modelViewer.setAttribute('skybox-image', skyboxUrl);
+                skyboxName.textContent = skyboxUrl ? skyboxUrl.split('/').pop().split('.')[0] : "<none>";
+            }
+
+            changeSkyboxButton.addEventListener('click', () => {
+                currentSkybox = (currentSkybox + 1) % skyboxImages.length;
+                updateSkybox();
+            });
+
+            // Set initial skybox name
+            updateSkybox();
     </script>
 </html>
 
