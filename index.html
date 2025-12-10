@@ -58,6 +58,10 @@
                 <button id="change-skybox-button">Change Skybox</button>
                 <div id="skybox-name" class="test-control-value"></div>
             </div>
+            <div id="env-controls" class="test-controls">
+                <button id="change-env-button">Change Env</button>
+                <div id="env-name" class="test-control-value"></div>
+            </div>            
             <div id="exposure-controls" class="test-controls">
                 <input id="exposure-slider" type="range" min="0.25" max="2.5" step="0.05" value="0.9">
                 <span id="exposure-value" class="test-control-value">0.9</span>
@@ -84,10 +88,10 @@
     <script type="text/javascript">
             const skyboxImages = [
                 null,                
-                "./env/bg_black.jpg",
-                "./env/bg_brown.jpg",
-                "./env/bg_grey.jpg",
-                "https://res.cloudinary.com/kumarmk/image/upload/v1764930082/HDR_029_Sky_Cloudy_Bg_j4r6vc.jpg",                
+                "./skybox/bg_black.jpg",
+                "./skybox/bg_brown.jpg",
+                "./skybox/bg_grey.jpg",
+                "./skybox/cloudy.jpg",                
             ];
             let currentSkybox = 0;
 
@@ -105,11 +109,24 @@
             ]
             let currentAsset = 0;
 
+            const envs = [
+                "./env/env_2.hdr",                     
+                "./env/env_12.hdr",           
+                "./env/cloudy.jpg",          
+            ]
+            let currentEnv = 0;            
+
             function updateSkybox() {
                 const skyboxUrl = skyboxImages[currentSkybox];
                 modelViewer.setAttribute('skybox-image', skyboxUrl);
                 skyboxName.textContent = skyboxUrl ? skyboxUrl.split('/').pop().split('.')[0] : "<none>";
             }
+
+            function updateEnv() {
+                const envUrl = envs[currentEnv];
+                modelViewer.setAttribute('environment-image', envUrl);
+                envName.textContent = envUrl ? envUrl.split('/').pop().split('.')[0] : "<none>";
+            }            
 
             function setupProductUrls(modelUrl, posterUrl) {
                 const url = modelUrl ? modelUrl : assets[currentAsset];
@@ -141,6 +158,8 @@
 
             const changeSkyboxButton = document.getElementById('change-skybox-button');
             const skyboxName = document.getElementById('skybox-name');
+            const changeEnvButton = document.getElementById('change-env-button');            
+            const envName = document.getElementById('env-name');            
             const skuIdInput = document.getElementById('sku-id-input');
             const modelName = document.getElementById('model-name');            
             const changeModelButton = document.getElementById('change-model-button');
@@ -153,6 +172,11 @@
                 currentSkybox = (currentSkybox + 1) % skyboxImages.length;
                 updateSkybox();
             });
+
+            changeEnvButton.addEventListener('click', () => {
+                currentEnv = (currentEnv + 1) % envs.length;
+                updateEnv();
+            })
 
             changeModelButton.addEventListener('click', () => {
                 onModelChangeEvent();
@@ -168,6 +192,7 @@
             });
 
             updateSkybox();
+            updateEnv();            
             setupProductUrls();
             updateExposure();       
     </script>
