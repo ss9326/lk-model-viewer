@@ -10,62 +10,57 @@
                 src="/lk-model-viewer/libs/model-viewer.min.js"></script>
         <script src="https://unpkg.com/focus-visible@5.0.2/dist/focus-visible.js" defer></script>
         <style>
-            #skybox-controls {
-                position: absolute;
-                left: 150px;                
-                top: 10px;
+
+            #test-controls-container {
+                display: flex;
+                align-items: center;
+                flex-direction: row;
+                gap: 20px;     
+                padding: 10px;           
+            }
+
+            .test-controls {
                 z-index: 1;
                 display: flex;
-                align-items: start;
-                flex-direction: column;
-                gap: 10px;                
-            }
-
-            #change-skybox-button {
-
-            }
-
-            #skybox-name {
-                color: white;
-                background-color: rgba(0,0,0,0.5);
-                padding: 2px 5px;
-                border-radius: 3px;
-            }
-
-            #model-controls {
-                position: absolute;
-                left: 10px;    
-                top: 10px;
-                z-index: 1;
-                display: flex;
-                align-items: start;
+                align-items: stretch;
                 flex-direction: column;
                 gap: 10px;
-            }            
+            }       
 
-            #model-name {
+            .test-control-value {
                 color: white;
                 background-color: rgba(0,0,0,0.5);
                 padding: 2px 5px;
                 border-radius: 3px;
-            }
+                font-size: 16px;
+            }     
 
             #sku-id-input {
                 margin-right: 5px;
             }            
+
+            #exposure-controls {
+                min-width: 125px;
+            }
         </style>
       <script type="module" crossorigin src="/lk-model-viewer/assets/main-ghxNzQXj.js"></script>
       <link rel="stylesheet" crossorigin href="/lk-model-viewer/assets/main-2LnNSLuN.css">
     </head>
     <body>
-        <div id="model-controls">
-            <input type="text" id="sku-id-input" placeholder="Enter SKU ID">
-            <button id="change-model-button">Change Model</button>
-            <div id="model-name"></div>            
-        </div>
-        <div id="skybox-controls">
-            <button id="change-skybox-button">Change Skybox</button>
-            <div id="skybox-name"></div>
+        <div id="test-controls-container">
+            <div id="model-controls" class="test-controls">
+                <input type="text" id="sku-id-input" placeholder="Enter SKU ID">
+                <button id="change-model-button">Change Model</button>
+                <div id="model-name" class="test-control-value"></div>            
+            </div>
+            <div id="skybox-controls" class="test-controls">
+                <button id="change-skybox-button">Change Skybox</button>
+                <div id="skybox-name" class="test-control-value"></div>
+            </div>
+            <div id="exposure-controls" class="test-controls">
+                <input id="exposure-slider" type="range" min="0.25" max="2.5" step="0.05" value="0.9">
+                <span id="exposure-value" class="test-control-value">0.9</span>
+            </div>
         </div>
 
         <div id="card">
@@ -80,7 +75,7 @@
                     camera-controls
                     camera-target="0m 0m 0m"
                     touch-action="none"
-                    auto-rotate="false">
+                    auto-rotate=true>
             </model-viewer>            
         </div>
     </body>
@@ -134,6 +129,12 @@
                 }
                 setupProductUrls(modelUrl)                
             }
+
+            function updateExposure() {
+                const exposure = exposureSlider.value;
+                modelViewer.setAttribute('exposure', exposure);
+                exposureValue.textContent = "Exposure: " + exposure;
+            }
             
             const modelViewer = document.querySelector('model-viewer');
 
@@ -142,6 +143,8 @@
             const skuIdInput = document.getElementById('sku-id-input');
             const modelName = document.getElementById('model-name');            
             const changeModelButton = document.getElementById('change-model-button');
+            const exposureSlider = document.getElementById('exposure-slider');
+            const exposureValue = document.getElementById('exposure-value');
 
             skuIdInput.style.display = 'none';
 
@@ -159,8 +162,13 @@
                 }
             })
 
+            exposureSlider.addEventListener('input', () => {
+                updateExposure();
+            });
+
             updateSkybox();
-            setupProductUrls()            
+            setupProductUrls();
+            updateExposure();       
     </script>
 </html>
 
