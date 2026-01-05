@@ -26,7 +26,16 @@
                 align-items: stretch;
                 flex-direction: column;
                 gap: 10px;
-            }       
+                font-size: 12px;
+            }     
+             
+            .test-controls-row {
+                z-index: 1;
+                display: flex;
+                align-items: stretch;
+                flex-direction: row;
+                gap: 5px;
+            }     
 
             .test-control-value {
                 color: white;
@@ -51,7 +60,11 @@
         <div id="test-controls-container">
             <div id="model-controls" class="test-controls">
                 <input type="text" id="sku-id-input" placeholder="Enter SKU ID">
-                <button id="change-model-button">Change Model</button>
+                <div class="test-controls-row">
+                    <button id="change-model-l-button">&lt;</button>
+                    <div>Change Model</div>
+                    <button id="change-model-r-button">&gt;</button>    
+                </div>
                 <div id="model-name" class="test-control-value"></div>            
             </div>
             <div id="skybox-controls" class="test-controls">
@@ -111,6 +124,7 @@
                 "./assets/239205.glb",
                 "./assets/239205_1.glb",
                 "./assets/239205_2.glb",                
+                "./assets/239205_3.glb",                
                 "./assets/239212.glb",               
                 "./assets/239213.glb",
             ]
@@ -143,13 +157,14 @@
                 document.getElementById('model-viewer').poster = posterUrl;
             }
 
-            function onModelChangeEvent() {
+            function onModelChangeEvent(next = true) {
                 const skuId = skuIdInput.value.trim();
                 var modelUrl;
                 if (skuId) {
                     modelUrl = `./assets/${skuId}.glb`;
                 } else {
-                    currentAsset = (currentAsset + 1) % assets.length;
+                    add = next ? 1 : -1
+                    currentAsset = (currentAsset + add + assets.length) % assets.length;
                     modelUrl = assets[currentAsset];               
                 }
                 setupProductUrls(modelUrl)                
@@ -169,7 +184,8 @@
             const envName = document.getElementById('env-name');            
             const skuIdInput = document.getElementById('sku-id-input');
             const modelName = document.getElementById('model-name');            
-            const changeModelButton = document.getElementById('change-model-button');
+            const changeModelRButton = document.getElementById('change-model-r-button');
+            const changeModelLButton = document.getElementById('change-model-l-button');
             const exposureSlider = document.getElementById('exposure-slider');
             const exposureValue = document.getElementById('exposure-value');
 
@@ -185,9 +201,13 @@
                 updateEnv();
             })
 
-            changeModelButton.addEventListener('click', () => {
-                onModelChangeEvent();
+            changeModelRButton.addEventListener('click', () => {
+                onModelChangeEvent(true);
             });
+            changeModelLButton.addEventListener('click', () => {
+                onModelChangeEvent(false);
+            });
+
             skuIdInput.addEventListener("keyup", ({key}) => {
                 if (key === "Enter") {
                     onModelChangeEvent();
