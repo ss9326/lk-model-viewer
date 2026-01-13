@@ -14,10 +14,13 @@
             #test-controls-container {
                 position: absolute;
                 display: flex;
-                align-items: center;
+                align-items: start;
                 flex-direction: row;
+                background-color: rgba(104, 104, 104, 0.5);
+                border-radius: 12px;
                 gap: 20px;     
-                padding: 10px;           
+                padding: 10px;    
+                z-index: 1;       
             }
 
             .test-controls {
@@ -25,7 +28,7 @@
                 display: flex;
                 align-items: stretch;
                 flex-direction: column;
-                gap: 10px;
+                gap: 4px;
                 font-size: 12px;
             }     
              
@@ -51,6 +54,10 @@
 
             #exposure-controls {
                 min-width: 125px;
+            }
+
+            .change-button {
+                height: 26px;
             }
 
             #dropzone {
@@ -100,23 +107,26 @@
                     <button id="change-model-r-button">&gt;</button>    
                 </div>
                 <div id="model-name" class="test-control-value"></div>            
-            </div>
-            <div id="skybox-controls" class="test-controls">
-                <button id="change-skybox-button">Change Skybox</button>
-                <div id="skybox-name" class="test-control-value"></div>
+                <div>
+                    <button id="browse-glb-button" type="button">Browse GLB</button>
+                    <input id="glb-file-input" type="file" accept=".glb,model/gltf-binary" hidden multiple>
+                </div>
             </div>
             <div id="env-controls" class="test-controls">
-                <button id="change-env-button">Change Env</button>
+                <button id="change-env-button" class="change-button">Change Env</button>
                 <div id="env-name" class="test-control-value"></div>
-            </div>            
+                <div>
+                    <button id="browse-env-button" type="button">Browse HDR/JPG</button>
+                    <input id="env-file-input" type="file" accept=".hdr,.jpg,.jpeg" hidden multiple>
+                </div>                
+            </div>     
+            <div id="skybox-controls" class="test-controls">
+                <button id="change-skybox-button" class="change-button">Change Skybox</button>
+                <div id="skybox-name" class="test-control-value"></div>
+            </div>       
             <div id="exposure-controls" class="test-controls">
                 <input id="exposure-slider" type="range" min="0.25" max="2.5" step="0.05" value="0.9">
                 <span id="exposure-value" class="test-control-value">0.9</span>
-            </div>
-            <div id="dropzone" class="test-controls">
-                <div>Browse or Drag/Drop GLB</div>
-                <button id="browse-glb-button" type="button">Browse</button>
-                <input id="glb-file-input" type="file" accept=".glb,model/gltf-binary" hidden multiple>
             </div>
         </div>
 
@@ -136,7 +146,7 @@
             </model-viewer>            
         </div>
         <div id="dropzone-target">
-            <div id="dropzone-message">Drop GLB here!</div>
+            <div id="dropzone-message">Drop GLB/HDR/JPG here!</div>
         </div>
     </body>
 
@@ -156,9 +166,9 @@
             let currentAsset = 0;
 
             const envs = [
-                "./env/env_2.hdr",                     
-                "./env/env_12.hdr",           
-                "./env/cloudy.jpg",          
+                { url: "./env/env_2.hdr", name: "env_2" },
+                { url: "./env/env_12.hdr", name: "env_12" },
+                { url: "./env/cloudy.jpg", name: "cloudy" },
             ]
             let currentEnv = 0;            
 
@@ -169,9 +179,10 @@
             }
 
             function updateEnv() {
-                const envUrl = envs[currentEnv];
+                const env = envs[currentEnv];
+                const envUrl = env ? env.url : null;
                 modelViewer.setAttribute('environment-image', envUrl);
-                envName.textContent = envUrl ? envUrl.split('/').pop().split('.')[0] : "<none>";
+                envName.textContent = env ? env.name : "<none>";
             }            
 
             function getAssetByIndex(index) {
@@ -269,6 +280,33 @@
                 modelViewer.setAttribute('exposure', exposure);
                 exposureValue.textContent = "Exposure: " + exposure;
             }
+
+            function isEnvFile(file) {
+                if (!file) return false;
+                const lowerName = file.name.toLowerCase();
+                return lowerName.endsWith(".hdr") || lowerName.endsWith(".jpg") || lowerName.endsWith(".jpeg");
+            }
+
+            function addEnvFile(file) {
+                if (!isEnvFile(file)) {
+                    return;
+                }
+                const url = URL.createObjectURL(file);
+                const name = file.name.replace(/\.(hdr|jpg|jpeg)$/i, "");
+                envs.push({ url, name, revokable: true });
+                currentEnv = envs.length - 1;
+                updateEnv();
+            }
+
+            function addEnvFiles(fileList) {
+                const files = Array.from(fileList || []).filter(isEnvFile);
+                if (!files.length) {
+                    return;
+                }
+                files.forEach((file) => {
+                    addEnvFile(file);
+                });
+            }
             
             const modelViewer = document.querySelector('model-viewer');
 
@@ -286,6 +324,8 @@
             const dropzoneTarget = document.getElementById('dropzone-target');
             const browseGlbButton = document.getElementById('browse-glb-button');
             const glbFileInput = document.getElementById('glb-file-input');
+            const browseEnvButton = document.getElementById('browse-env-button');
+            const envFileInput = document.getElementById('env-file-input');
 
             skuIdInput.style.display = 'none';
 
@@ -325,6 +365,15 @@
                 glbFileInput.value = "";
             });
 
+            browseEnvButton.addEventListener('click', () => {
+                envFileInput.click();
+            });
+
+            envFileInput.addEventListener('change', (event) => {
+                addEnvFiles(event.target.files);
+                envFileInput.value = "";
+            });
+
             let dragCounter = 0;
 
             function showDropzone() {
@@ -357,13 +406,26 @@
                 event.preventDefault();
                 dragCounter = 0;
                 hideDropzone();
-                addDroppedModels(event.dataTransfer.files);
+                const files = Array.from(event.dataTransfer.files || []);
+                const glbFiles = files.filter(isGlbFile);
+                const envFiles = files.filter(isEnvFile);
+                if (glbFiles.length) {
+                    addDroppedModels(glbFiles);
+                }
+                if (envFiles.length) {
+                    addEnvFiles(envFiles);
+                }
             });
 
             window.addEventListener('beforeunload', () => {
                 assets.forEach((asset) => {
                     if (asset.revokable) {
                         URL.revokeObjectURL(asset.url);
+                    }
+                });
+                envs.forEach((env) => {
+                    if (env.revokable) {
+                        URL.revokeObjectURL(env.url);
                     }
                 });
             });
