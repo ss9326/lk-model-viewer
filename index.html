@@ -52,6 +52,40 @@
             #exposure-controls {
                 min-width: 125px;
             }
+
+            #dropzone {
+                display: flex;
+                flex-direction: column;
+                gap: 6px;
+            }
+
+            #dropzone-target {
+                position: fixed;
+                inset: 0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background-color: rgba(0,0,0,0);
+                opacity: 0;
+                pointer-events: none;
+                transition: opacity 0.2s ease, background-color 0.2s ease;
+                z-index: 2;
+            }
+
+            #dropzone-target.is-dragover {
+                background-color: rgba(0,0,0,0.35);
+                opacity: 1;
+            }
+
+            #dropzone-message {
+                color: white;
+                background-color: rgba(0,0,0,0.45);
+                border: 2px dashed rgba(255,255,255,0.85);
+                border-radius: 8px;
+                padding: 16px 24px;
+                font-size: 22px;
+                letter-spacing: 0.5px;
+            }
         </style>
       <script type="module" crossorigin src="/lk-model-viewer/assets/main-ghxNzQXj.js"></script>
       <link rel="stylesheet" crossorigin href="/lk-model-viewer/assets/main-2LnNSLuN.css">
@@ -62,7 +96,7 @@
                 <input type="text" id="sku-id-input" placeholder="Enter SKU ID">
                 <div class="test-controls-row">
                     <button id="change-model-l-button">&lt;</button>
-                    <div>Change Model</div>
+                    <div>Change Model <span id="model-index"></span></div>
                     <button id="change-model-r-button">&gt;</button>    
                 </div>
                 <div id="model-name" class="test-control-value"></div>            
@@ -78,6 +112,11 @@
             <div id="exposure-controls" class="test-controls">
                 <input id="exposure-slider" type="range" min="0.25" max="2.5" step="0.05" value="0.9">
                 <span id="exposure-value" class="test-control-value">0.9</span>
+            </div>
+            <div id="dropzone" class="test-controls">
+                <div>Browse or Drag/Drop GLB</div>
+                <button id="browse-glb-button" type="button">Browse</button>
+                <input id="glb-file-input" type="file" accept=".glb,model/gltf-binary" hidden multiple>
             </div>
         </div>
 
@@ -96,6 +135,9 @@
                     auto-rotate=true>
             </model-viewer>            
         </div>
+        <div id="dropzone-target">
+            <div id="dropzone-message">Drop GLB here!</div>
+        </div>
     </body>
 
     <script type="text/javascript">
@@ -109,24 +151,7 @@
             let currentSkybox = 0;
 
             const assets = [
-                "./assets/206272.glb",
-                "./assets/238524.glb",                
-                "./assets/238526.glb", 
-                "./assets/238528.glb",                
-                "./assets/238534.glb",
-                "./assets/238578.glb",                
-                "./assets/238583.glb",
-                "./assets/238647.glb",
-                "./assets/238660.glb",
-                "./assets/239171.glb",   
-                "./assets/239172.glb",                 
-                "./assets/239174.glb",                
-                "./assets/239205.glb",
-                "./assets/239205_1.glb",
-                "./assets/239205_2.glb",                
-                "./assets/239205_3.glb",                
-                "./assets/239212.glb",               
-                "./assets/239213.glb",
+                { url: "./assets/206272.glb", name: "206272" },
             ]
             let currentAsset = 0;
 
@@ -149,25 +174,94 @@
                 envName.textContent = envUrl ? envUrl.split('/').pop().split('.')[0] : "<none>";
             }            
 
-            function setupProductUrls(modelUrl, posterUrl) {
-                const url = modelUrl ? modelUrl : assets[currentAsset];
-                if (!url) return;
-                modelName.textContent = url.split('/').pop().split('.')[0];
-                document.getElementById('model-viewer').src = url;
+            function getAssetByIndex(index) {
+                return assets[index] || null;
+            }
+
+            function extractSkuId(fileName) {
+                const lowerName = fileName.toLowerCase();
+                const glbIndex = lowerName.lastIndexOf(".glb");
+                if (glbIndex === -1) {
+                    return null;
+                }
+                const baseName = fileName.slice(0, glbIndex);
+                const skuIndex = lowerName.lastIndexOf("sku_");
+                const candidate = skuIndex !== -1 ? fileName.slice(skuIndex + 4, glbIndex) : baseName;
+                const trimmed = candidate.trim();
+                return trimmed ? trimmed : null;
+            }
+
+            function setupProductUrls(asset, posterUrl) {
+                if (!asset) {
+                    asset = getAssetByIndex(currentAsset);
+                    if (!asset) return;
+                }
+                modelName.textContent = asset.name;
+                document.getElementById('model-viewer').src = asset.url;
                 document.getElementById('model-viewer').poster = posterUrl;
+
+                modelIndex.textContent = `${currentAsset + 1} / ${assets.length}`;   
             }
 
             function onModelChangeEvent(next = true) {
                 const skuId = skuIdInput.value.trim();
-                var modelUrl;
+                var asset;
                 if (skuId) {
-                    modelUrl = `./assets/${skuId}.glb`;
+                    asset = assets.filter(p => p.name == skuId)[0]
+                    if (!asset) return
                 } else {
+                    const totalAssets = assets.length;
+                    if (!totalAssets) {
+                        return;
+                    }
                     add = next ? 1 : -1
-                    currentAsset = (currentAsset + add + assets.length) % assets.length;
-                    modelUrl = assets[currentAsset];               
+                    currentAsset = (currentAsset + add + totalAssets) % totalAssets;
+                    asset = getAssetByIndex(currentAsset);
                 }
-                setupProductUrls(modelUrl)                
+                setupProductUrls(asset)                
+            }
+
+            function isGlbFile(file) {
+                if (!file) return false;
+                const lowerName = file.name.toLowerCase();
+                return file.type === "model/gltf-binary" || lowerName.endsWith(".glb");
+            }
+
+            function addDroppedModels(fileList) {
+                const files = Array.from(fileList || []).filter(isGlbFile);
+                if (!files.length) {
+                    return;
+                }
+                let firstIndex = null;
+                files.forEach((file) => {
+                    const skuId = extractSkuId(file.name);
+                    if (!skuId) {
+                        return;
+                    }
+                    const url = URL.createObjectURL(file);
+                    const name = skuId;
+                    const existingIndex = assets.findIndex((asset) => asset.name === name);
+                    const nextAsset = { url, name, revokable: true };
+                    if (existingIndex >= 0) {
+                        const existing = assets[existingIndex];
+                        if (existing.revokable) {
+                            URL.revokeObjectURL(existing.url);
+                        }
+                        assets[existingIndex] = nextAsset;
+                        if (firstIndex === null) {
+                            firstIndex = existingIndex;
+                        }
+                    } else {
+                        assets.push(nextAsset);
+                        if (firstIndex === null) {
+                            firstIndex = assets.length - 1;
+                        }
+                    }
+                });
+                if (firstIndex !== null) {
+                    currentAsset = firstIndex;
+                    setupProductUrls();
+                }
             }
 
             function updateExposure() {
@@ -183,11 +277,15 @@
             const changeEnvButton = document.getElementById('change-env-button');            
             const envName = document.getElementById('env-name');            
             const skuIdInput = document.getElementById('sku-id-input');
-            const modelName = document.getElementById('model-name');            
+            const modelName = document.getElementById('model-name');     
+            const modelIndex = document.getElementById('model-index');
             const changeModelRButton = document.getElementById('change-model-r-button');
             const changeModelLButton = document.getElementById('change-model-l-button');
             const exposureSlider = document.getElementById('exposure-slider');
             const exposureValue = document.getElementById('exposure-value');
+            const dropzoneTarget = document.getElementById('dropzone-target');
+            const browseGlbButton = document.getElementById('browse-glb-button');
+            const glbFileInput = document.getElementById('glb-file-input');
 
             skuIdInput.style.display = 'none';
 
@@ -218,10 +316,61 @@
                 updateExposure();
             });
 
+            browseGlbButton.addEventListener('click', () => {
+                glbFileInput.click();
+            });
+
+            glbFileInput.addEventListener('change', (event) => {
+                addDroppedModels(event.target.files);
+                glbFileInput.value = "";
+            });
+
+            let dragCounter = 0;
+
+            function showDropzone() {
+                dropzoneTarget.classList.add('is-dragover');
+            }
+
+            function hideDropzone() {
+                dropzoneTarget.classList.remove('is-dragover');
+            }
+
+            window.addEventListener('dragenter', (event) => {
+                event.preventDefault();
+                dragCounter += 1;
+                showDropzone();
+            });
+
+            window.addEventListener('dragover', (event) => {
+                event.preventDefault();
+            });
+
+            window.addEventListener('dragleave', (event) => {
+                event.preventDefault();
+                dragCounter = Math.max(0, dragCounter - 1);
+                if (dragCounter === 0) {
+                    hideDropzone();
+                }
+            });
+
+            window.addEventListener('drop', (event) => {
+                event.preventDefault();
+                dragCounter = 0;
+                hideDropzone();
+                addDroppedModels(event.dataTransfer.files);
+            });
+
+            window.addEventListener('beforeunload', () => {
+                assets.forEach((asset) => {
+                    if (asset.revokable) {
+                        URL.revokeObjectURL(asset.url);
+                    }
+                });
+            });
+
             updateSkybox();
             updateEnv();            
             setupProductUrls();
             updateExposure();       
     </script>
 </html>
-
