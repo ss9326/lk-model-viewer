@@ -11,56 +11,122 @@
                 src="/libs/model-viewer.min.js"></script>
         <script src="https://unpkg.com/focus-visible@5.0.2/dist/focus-visible.js" defer></script>
         <style>
-            #skybox-controls {
+
+            #test-controls-container {
                 position: absolute;
-                left: 150px;                
-                top: 10px;
-                z-index: 1;
                 display: flex;
                 align-items: start;
-                flex-direction: column;
-                gap: 10px;                
+                flex-direction: row;
+                background-color: rgba(104, 104, 104, 0.5);
+                border-radius: 12px;
+                gap: 20px;     
+                padding: 10px;    
+                z-index: 1;       
             }
 
-            #skybox-name {
+            .test-controls {
+                z-index: 1;
+                display: flex;
+                align-items: stretch;
+                flex-direction: column;
+                gap: 4px;
+                font-size: 12px;
+            }     
+             
+            .test-controls-row {
+                z-index: 1;
+                display: flex;
+                align-items: stretch;
+                flex-direction: row;
+                gap: 5px;
+            }     
+
+            .test-control-value {
                 color: white;
                 background-color: rgba(0,0,0,0.5);
                 padding: 2px 5px;
                 border-radius: 3px;
-            }
-
-            #model-controls {
-                position: absolute;
-                left: 10px;    
-                top: 10px;
-                z-index: 1;
-                display: flex;
-                align-items: start;
-                flex-direction: column;
-                gap: 10px;
-            }            
-
-            #model-name {
-                color: white;
-                background-color: rgba(0,0,0,0.5);
-                padding: 2px 5px;
-                border-radius: 3px;
-            }
+                font-size: 16px;
+            }     
 
             #sku-id-input {
                 margin-right: 5px;
             }            
+
+            #exposure-controls {
+                min-width: 125px;
+            }
+
+            .change-button {
+                height: 26px;
+            }
+
+            #dropzone {
+                display: flex;
+                flex-direction: column;
+                gap: 6px;
+            }
+
+            #dropzone-target {
+                position: fixed;
+                inset: 0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background-color: rgba(0,0,0,0);
+                opacity: 0;
+                pointer-events: none;
+                transition: opacity 0.2s ease, background-color 0.2s ease;
+                z-index: 2;
+            }
+
+            #dropzone-target.is-dragover {
+                background-color: rgba(0,0,0,0.35);
+                opacity: 1;
+            }
+
+            #dropzone-message {
+                color: white;
+                background-color: rgba(0,0,0,0.45);
+                border: 2px dashed rgba(255,255,255,0.85);
+                border-radius: 8px;
+                padding: 16px 24px;
+                font-size: 22px;
+                letter-spacing: 0.5px;
+            }
         </style>
     </head>
     <body>
-        <div id="model-controls">
-            <input type="text" id="sku-id-input" placeholder="Enter SKU ID">
-            <button id="change-model-button">Change Model</button>
-            <div id="model-name"></div>            
-        </div>
-        <div id="skybox-controls">
-            <button id="change-skybox-button">Change Skybox</button>
-            <div id="skybox-name"></div>
+        <div id="test-controls-container">
+            <div id="model-controls" class="test-controls">
+                <input type="text" id="sku-id-input" placeholder="Enter SKU ID">
+                <div class="test-controls-row">
+                    <button id="change-model-l-button">&lt;</button>
+                    <div>Change Model <span id="model-index"></span></div>
+                    <button id="change-model-r-button">&gt;</button>    
+                </div>
+                <div id="model-name" class="test-control-value"></div>            
+                <div>
+                    <button id="browse-glb-button" type="button">Browse GLB</button>
+                    <input id="glb-file-input" type="file" accept=".glb,model/gltf-binary" hidden multiple>
+                </div>
+            </div>
+            <div id="env-controls" class="test-controls">
+                <button id="change-env-button" class="change-button">Change Env</button>
+                <div id="env-name" class="test-control-value"></div>
+                <div>
+                    <button id="browse-env-button" type="button">Browse HDR/JPG</button>
+                    <input id="env-file-input" type="file" accept=".hdr,.jpg,.jpeg" hidden multiple>
+                </div>                
+            </div>     
+            <div id="skybox-controls" class="test-controls">
+                <button id="change-skybox-button" class="change-button">Change Skybox</button>
+                <div id="skybox-name" class="test-control-value"></div>
+            </div>       
+            <div id="exposure-controls" class="test-controls">
+                <input id="exposure-slider" type="range" min="0.25" max="2.5" step="0.05" value="0.9">
+                <span id="exposure-value" class="test-control-value">0.9</span>
+            </div>
         </div>
 
         <div id="card">
@@ -75,34 +141,35 @@
                     camera-controls
                     camera-target="0m 0m 0m"
                     touch-action="none"
-                    auto-rotate="false">
+                    auto-rotate=true>
             </model-viewer>            
+        </div>
+        <div id="dropzone-target">
+            <div id="dropzone-message">Drop GLB/HDR/JPG here!</div>
         </div>
     </body>
 
     <script type="text/javascript">
             const skyboxImages = [
                 null,                
-                "./env/bg_black.jpg",
-                "./env/bg_brown.jpg",
-                "./env/bg_grey.jpg",
-                "https://res.cloudinary.com/kumarmk/image/upload/v1764930082/HDR_029_Sky_Cloudy_Bg_j4r6vc.jpg",                
+                "./skybox/bg_black.jpg",
+                "./skybox/bg_brown.jpg",
+                "./skybox/bg_grey.jpg",
+                "./skybox/cloudy.jpg",                
             ];
             let currentSkybox = 0;
 
             const assets = [
-                "./assets/206272.glb",
-                "./assets/238526.glb",                
-                "./assets/238534.glb",
-                "./assets/238583.glb",
-                "./assets/238647.glb",
-                "./assets/238660.glb",
-                "./assets/239174.glb",                
-                "./assets/239205.glb",
-                "./assets/239212.glb",               
-                "./assets/239213.glb",
+                { url: "./assets/206272.glb", name: "206272" },
             ]
             let currentAsset = 0;
+
+            const envs = [
+                { url: "./env/env_2.hdr", name: "env_2" },
+                { url: "./env/env_12.hdr", name: "env_12" },
+                { url: "./env/cloudy.jpg", name: "cloudy" },
+            ]
+            let currentEnv = 0;            
 
             function updateSkybox() {
                 const skyboxUrl = skyboxImages[currentSkybox];
@@ -110,33 +177,154 @@
                 skyboxName.textContent = skyboxUrl ? skyboxUrl.split('/').pop().split('.')[0] : "<none>";
             }
 
-            function setupProductUrls(modelUrl, posterUrl) {
-                const url = modelUrl ? modelUrl : assets[currentAsset];
-                if (!url) return;
-                modelName.textContent = url.split('/').pop().split('.')[0];
-                document.getElementById('model-viewer').src = url;
-                document.getElementById('model-viewer').poster = posterUrl;
+            function updateEnv() {
+                const env = envs[currentEnv];
+                const envUrl = env ? env.url : null;
+                modelViewer.setAttribute('environment-image', envUrl);
+                envName.textContent = env ? env.name : "<none>";
+            }            
+
+            function getAssetByIndex(index) {
+                return assets[index] || null;
             }
 
-            function onModelChangeEvent() {
-                const skuId = skuIdInput.value.trim();
-                var modelUrl;
-                if (skuId) {
-                    modelUrl = `./assets/${skuId}.glb`;
-                } else {
-                    currentAsset = (currentAsset + 1) % assets.length;
-                    modelUrl = assets[currentAsset];               
+            function extractSkuId(fileName) {
+                const lowerName = fileName.toLowerCase();
+                const glbIndex = lowerName.lastIndexOf(".glb");
+                if (glbIndex === -1) {
+                    return null;
                 }
-                setupProductUrls(modelUrl)                
+                const baseName = fileName.slice(0, glbIndex);
+                const skuIndex = lowerName.lastIndexOf("sku_");
+                const candidate = skuIndex !== -1 ? fileName.slice(skuIndex + 4, glbIndex) : baseName;
+                const trimmed = candidate.trim();
+                return trimmed ? trimmed : null;
+            }
+
+            function setupProductUrls(asset, posterUrl) {
+                if (!asset) {
+                    asset = getAssetByIndex(currentAsset);
+                    if (!asset) return;
+                }
+                modelName.textContent = asset.name;
+                document.getElementById('model-viewer').src = asset.url;
+                document.getElementById('model-viewer').poster = posterUrl;
+
+                modelIndex.textContent = `${currentAsset + 1} / ${assets.length}`;   
+            }
+
+            function onModelChangeEvent(next = true) {
+                const skuId = skuIdInput.value.trim();
+                var asset;
+                if (skuId) {
+                    asset = assets.filter(p => p.name == skuId)[0]
+                    if (!asset) return
+                } else {
+                    const totalAssets = assets.length;
+                    if (!totalAssets) {
+                        return;
+                    }
+                    add = next ? 1 : -1
+                    currentAsset = (currentAsset + add + totalAssets) % totalAssets;
+                    asset = getAssetByIndex(currentAsset);
+                }
+                setupProductUrls(asset)                
+            }
+
+            function isGlbFile(file) {
+                if (!file) return false;
+                const lowerName = file.name.toLowerCase();
+                return file.type === "model/gltf-binary" || lowerName.endsWith(".glb");
+            }
+
+            function addDroppedModels(fileList) {
+                const files = Array.from(fileList || []).filter(isGlbFile);
+                if (!files.length) {
+                    return;
+                }
+                let firstIndex = null;
+                files.forEach((file) => {
+                    const skuId = extractSkuId(file.name);
+                    if (!skuId) {
+                        return;
+                    }
+                    const url = URL.createObjectURL(file);
+                    const name = skuId;
+                    const existingIndex = assets.findIndex((asset) => asset.name === name);
+                    const nextAsset = { url, name, revokable: true };
+                    if (existingIndex >= 0) {
+                        const existing = assets[existingIndex];
+                        if (existing.revokable) {
+                            URL.revokeObjectURL(existing.url);
+                        }
+                        assets[existingIndex] = nextAsset;
+                        if (firstIndex === null) {
+                            firstIndex = existingIndex;
+                        }
+                    } else {
+                        assets.push(nextAsset);
+                        if (firstIndex === null) {
+                            firstIndex = assets.length - 1;
+                        }
+                    }
+                });
+                if (firstIndex !== null) {
+                    currentAsset = firstIndex;
+                    setupProductUrls();
+                }
+            }
+
+            function updateExposure() {
+                const exposure = exposureSlider.value;
+                modelViewer.setAttribute('exposure', exposure);
+                exposureValue.textContent = "Exposure: " + exposure;
+            }
+
+            function isEnvFile(file) {
+                if (!file) return false;
+                const lowerName = file.name.toLowerCase();
+                return lowerName.endsWith(".hdr") || lowerName.endsWith(".jpg") || lowerName.endsWith(".jpeg");
+            }
+
+            function addEnvFile(file) {
+                if (!isEnvFile(file)) {
+                    return;
+                }
+                const url = URL.createObjectURL(file);
+                const name = file.name.replace(/\.(hdr|jpg|jpeg)$/i, "");
+                envs.push({ url, name, revokable: true });
+                currentEnv = envs.length - 1;
+                updateEnv();
+            }
+
+            function addEnvFiles(fileList) {
+                const files = Array.from(fileList || []).filter(isEnvFile);
+                if (!files.length) {
+                    return;
+                }
+                files.forEach((file) => {
+                    addEnvFile(file);
+                });
             }
             
             const modelViewer = document.querySelector('model-viewer');
 
             const changeSkyboxButton = document.getElementById('change-skybox-button');
             const skyboxName = document.getElementById('skybox-name');
+            const changeEnvButton = document.getElementById('change-env-button');            
+            const envName = document.getElementById('env-name');            
             const skuIdInput = document.getElementById('sku-id-input');
-            const modelName = document.getElementById('model-name');            
-            const changeModelButton = document.getElementById('change-model-button');
+            const modelName = document.getElementById('model-name');     
+            const modelIndex = document.getElementById('model-index');
+            const changeModelRButton = document.getElementById('change-model-r-button');
+            const changeModelLButton = document.getElementById('change-model-l-button');
+            const exposureSlider = document.getElementById('exposure-slider');
+            const exposureValue = document.getElementById('exposure-value');
+            const dropzoneTarget = document.getElementById('dropzone-target');
+            const browseGlbButton = document.getElementById('browse-glb-button');
+            const glbFileInput = document.getElementById('glb-file-input');
+            const browseEnvButton = document.getElementById('browse-env-button');
+            const envFileInput = document.getElementById('env-file-input');
 
             skuIdInput.style.display = 'none';
 
@@ -145,17 +333,105 @@
                 updateSkybox();
             });
 
-            changeModelButton.addEventListener('click', () => {
-                onModelChangeEvent();
+            changeEnvButton.addEventListener('click', () => {
+                currentEnv = (currentEnv + 1) % envs.length;
+                updateEnv();
+            })
+
+            changeModelRButton.addEventListener('click', () => {
+                onModelChangeEvent(true);
             });
+            changeModelLButton.addEventListener('click', () => {
+                onModelChangeEvent(false);
+            });
+
             skuIdInput.addEventListener("keyup", ({key}) => {
                 if (key === "Enter") {
                     onModelChangeEvent();
                 }
             })
 
+            exposureSlider.addEventListener('input', () => {
+                updateExposure();
+            });
+
+            browseGlbButton.addEventListener('click', () => {
+                glbFileInput.click();
+            });
+
+            glbFileInput.addEventListener('change', (event) => {
+                addDroppedModels(event.target.files);
+                glbFileInput.value = "";
+            });
+
+            browseEnvButton.addEventListener('click', () => {
+                envFileInput.click();
+            });
+
+            envFileInput.addEventListener('change', (event) => {
+                addEnvFiles(event.target.files);
+                envFileInput.value = "";
+            });
+
+            let dragCounter = 0;
+
+            function showDropzone() {
+                dropzoneTarget.classList.add('is-dragover');
+            }
+
+            function hideDropzone() {
+                dropzoneTarget.classList.remove('is-dragover');
+            }
+
+            window.addEventListener('dragenter', (event) => {
+                event.preventDefault();
+                dragCounter += 1;
+                showDropzone();
+            });
+
+            window.addEventListener('dragover', (event) => {
+                event.preventDefault();
+            });
+
+            window.addEventListener('dragleave', (event) => {
+                event.preventDefault();
+                dragCounter = Math.max(0, dragCounter - 1);
+                if (dragCounter === 0) {
+                    hideDropzone();
+                }
+            });
+
+            window.addEventListener('drop', (event) => {
+                event.preventDefault();
+                dragCounter = 0;
+                hideDropzone();
+                const files = Array.from(event.dataTransfer.files || []);
+                const glbFiles = files.filter(isGlbFile);
+                const envFiles = files.filter(isEnvFile);
+                if (glbFiles.length) {
+                    addDroppedModels(glbFiles);
+                }
+                if (envFiles.length) {
+                    addEnvFiles(envFiles);
+                }
+            });
+
+            window.addEventListener('beforeunload', () => {
+                assets.forEach((asset) => {
+                    if (asset.revokable) {
+                        URL.revokeObjectURL(asset.url);
+                    }
+                });
+                envs.forEach((env) => {
+                    if (env.revokable) {
+                        URL.revokeObjectURL(env.url);
+                    }
+                });
+            });
+
             updateSkybox();
-            setupProductUrls()            
+            updateEnv();            
+            setupProductUrls();
+            updateExposure();       
     </script>
 </html>
-
