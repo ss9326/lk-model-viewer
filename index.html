@@ -6,9 +6,8 @@
         <meta name="viewport"
               content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
 
-        <script type="module"
-                src="/lk-model-viewer/libs/model-viewer.min.js"></script>
-        <script src="https://unpkg.com/focus-visible@5.0.2/dist/focus-visible.js" defer></script>
+        <script type="module" src="/lk-model-viewer/libs/model-viewer.min.js"></script>
+        <script nomodule src="/lk-model-viewer/libs/model-viewer-umd.min.js"></script>        
         <style>
 
             #test-controls-container {
@@ -21,6 +20,25 @@
                 gap: 20px;     
                 padding: 10px;    
                 z-index: 1;       
+            }
+
+            .controls-header {
+                display: none;
+                align-items: center;
+                justify-content: space-between;
+                gap: 10px;
+                color: white;
+                font-size: 12px;
+            }
+
+            #controls-toggle {
+                display: none;
+                border: 1px solid rgba(255,255,255,0.5);
+                background: rgba(0,0,0,0.35);
+                color: white;
+                padding: 4px 8px;
+                border-radius: 6px;
+                font-size: 12px;
             }
 
             .test-controls {
@@ -93,12 +111,62 @@
                 font-size: 22px;
                 letter-spacing: 0.5px;
             }
+
+            @media (max-width: 768px) {
+                #test-controls-container {
+                    flex-direction: column;
+                    align-items: stretch;
+                    gap: 12px;
+                    padding: 12px;
+                    width: min(92vw, 360px);
+                    left: 12px;
+                    right: auto;
+                    top: 12px;
+                }
+
+                .controls-header {
+                    display: flex;
+                }
+
+                #controls-toggle {
+                    display: inline-flex;
+                }
+
+                #test-controls-container.is-collapsed .test-controls {
+                    display: none;
+                }
+
+                #test-controls-container.is-collapsed {
+                    gap: 0;
+                    padding: 10px 12px;
+                }
+
+                .test-controls-row {
+                    flex-wrap: wrap;
+                }
+
+                .test-control-value {
+                    font-size: 14px;
+                }
+
+                #exposure-controls {
+                    min-width: 0;
+                }
+
+                #exposure-slider {
+                    width: 100%;
+                }
+            }
         </style>
       <script type="module" crossorigin src="/lk-model-viewer/assets/main-ghxNzQXj.js"></script>
       <link rel="stylesheet" crossorigin href="/lk-model-viewer/assets/main-2LnNSLuN.css">
     </head>
     <body>
         <div id="test-controls-container">
+            <div class="controls-header">
+                <span>Settings</span>
+                <button id="controls-toggle" type="button" aria-expanded="true">-</button>
+            </div>
             <div id="model-controls" class="test-controls">
                 <input type="text" id="sku-id-input" placeholder="Enter SKU ID">
                 <div class="test-controls-row">
@@ -124,9 +192,14 @@
                 <button id="change-skybox-button" class="change-button">Change Skybox</button>
                 <div id="skybox-name" class="test-control-value"></div>
             </div>       
+            <div id="tonemapping-controls" class="test-controls">
+                <label for="tone-mapping-select">Tone Mapping</label>
+                <select id="tone-mapping-select"></select>
+            </div>            
             <div id="exposure-controls" class="test-controls">
-                <input id="exposure-slider" type="range" min="0.25" max="2.5" step="0.05" value="0.9">
-                <span id="exposure-value" class="test-control-value">0.9</span>
+                <label for="exposure-slider">Exposure</label>
+                <input id="exposure-slider" type="range" min="0.25" max="2.5" step="0.05" value="1.0">
+                <span id="exposure-value" class="test-control-value">1.0</span>
             </div>
         </div>
 
@@ -135,8 +208,6 @@
                     id="model-viewer"
                     alt="A 3D model of a Eyeglass/Sunglass"
                     shadow-intensity="1"
-                    exposure="0.9"
-                    skybox-image="./env/bg_brown.jpg"
                     environment-image="./env/env_2.hdr"
                     tone-mapping="aces"
                     camera-controls
@@ -153,10 +224,8 @@
     <script type="text/javascript">
             const skyboxImages = [
                 null,                
-                "./skybox/bg_black.jpg",
-                "./skybox/bg_brown.jpg",
+                "./skybox/cloudy.jpg",
                 "./skybox/bg_grey.jpg",
-                "./skybox/cloudy.jpg",                
             ];
             let currentSkybox = 0;
 
@@ -168,9 +237,15 @@
             const envs = [
                 { url: "./env/env_2.hdr", name: "env_2" },
                 { url: "./env/env_12.hdr", name: "env_12" },
-                { url: "./env/cloudy.jpg", name: "cloudy" },
             ]
             let currentEnv = 0;            
+            const toneMappingOptions = [
+                { value: "aces", label: "ACES" },
+                { value: "linear", label: "Linear" },                
+                { value: "neutral", label: "Neutral" },
+                { value: "agx", label: "AgX" },
+                { value: "reinhard", label: "Reinhard" },
+            ];
 
             function updateSkybox() {
                 const skyboxUrl = skyboxImages[currentSkybox];
@@ -278,7 +353,27 @@
             function updateExposure() {
                 const exposure = exposureSlider.value;
                 modelViewer.setAttribute('exposure', exposure);
-                exposureValue.textContent = "Exposure: " + exposure;
+                exposureValue.textContent = exposure;
+            }
+
+            function buildToneMappingOptions() {
+                toneMappingSelect.innerHTML = "";
+                toneMappingOptions.forEach((option) => {
+                    const element = document.createElement("option");
+                    element.value = option.value;
+                    element.textContent = option.label;
+                    toneMappingSelect.appendChild(element);
+                });
+            }
+
+            function updateToneMapping(nextValue) {
+                const current = modelViewer.getAttribute("tone-mapping");
+                const fallback = toneMappingOptions[0]?.value || "aces";
+                const desired = nextValue || toneMappingSelect.value || current || fallback;
+                const isKnown = toneMappingOptions.some((option) => option.value === desired);
+                const selected = isKnown ? desired : fallback;
+                toneMappingSelect.value = selected;
+                modelViewer.setAttribute("tone-mapping", selected);
             }
 
             function isEnvFile(file) {
@@ -326,6 +421,9 @@
             const glbFileInput = document.getElementById('glb-file-input');
             const browseEnvButton = document.getElementById('browse-env-button');
             const envFileInput = document.getElementById('env-file-input');
+            const toneMappingSelect = document.getElementById('tone-mapping-select');
+            const controlsToggle = document.getElementById('controls-toggle');
+            const controlsContainer = document.getElementById('test-controls-container');
 
             skuIdInput.style.display = 'none';
 
@@ -354,6 +452,16 @@
 
             exposureSlider.addEventListener('input', () => {
                 updateExposure();
+            });
+
+            toneMappingSelect.addEventListener("change", (event) => {
+                updateToneMapping(event.target.value);
+            });
+
+            controlsToggle.addEventListener("click", () => {
+                const isCollapsed = controlsContainer.classList.toggle("is-collapsed");
+                controlsToggle.setAttribute("aria-expanded", String(!isCollapsed));
+                controlsToggle.textContent = isCollapsed ? "+" : "-";
             });
 
             browseGlbButton.addEventListener('click', () => {
@@ -433,6 +541,8 @@
             updateSkybox();
             updateEnv();            
             setupProductUrls();
-            updateExposure();       
+            updateExposure();    
+            buildToneMappingOptions();
+            updateToneMapping();   
     </script>
 </html>
