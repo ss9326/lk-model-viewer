@@ -7,9 +7,8 @@
               content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
         <link rel="stylesheet" href="style.css">
 
-        <script type="module"
-                src="/libs/model-viewer.min.js"></script>
-        <script src="https://unpkg.com/focus-visible@5.0.2/dist/focus-visible.js" defer></script>
+        <script type="module" src="/libs/model-viewer.min.js"></script>
+        <script nomodule src="/libs/model-viewer-umd.min.js"></script>        
         <style>
 
             #test-controls-container {
@@ -21,7 +20,35 @@
                 border-radius: 12px;
                 gap: 20px;     
                 padding: 10px;    
+                left: 12px;
+                right: auto;
+                top: 12px;
                 z-index: 1;       
+            }
+
+            #test-controls-container.is-collapsed .test-controls {
+                display: none;
+            }
+
+            .controls-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 10px;
+                color: white;
+                font-size: 12px;
+            }
+
+            #controls-toggle {
+                display: block;
+                text-align: center;
+                border: 1px solid rgba(255,255,255,0.5);
+                background: rgba(0,0,0,0.35);
+                color: white;
+                min-height: 24px;
+                min-width: 24px;
+                border-radius: 6px;
+                font-size: 12px;
             }
 
             .test-controls {
@@ -94,10 +121,36 @@
                 font-size: 22px;
                 letter-spacing: 0.5px;
             }
+
+            @media (max-width: 1024px) {
+                #test-controls-container {
+                    flex-direction: column;
+                    align-items: stretch;
+                    gap: 12px;
+                    padding: 12px;
+                    width: min(92vw, 360px);
+                }
+
+                .test-controls-row {
+                    flex-wrap: wrap;
+                }
+
+                .test-control-value {
+                    font-size: 14px;
+                }
+
+                #exposure-controls {
+                    min-width: 0;
+                }
+            }
         </style>
     </head>
     <body>
-        <div id="test-controls-container">
+        <div id="test-controls-container" class="is-collapsed">
+            <div class="controls-header">
+                <span>Settings</span>
+                <button id="controls-toggle" type="button" aria-expanded="false">+</button>
+            </div>
             <div id="model-controls" class="test-controls">
                 <input type="text" id="sku-id-input" placeholder="Enter SKU ID">
                 <div class="test-controls-row">
@@ -107,7 +160,8 @@
                 </div>
                 <div id="model-name" class="test-control-value"></div>            
                 <div>
-                    <button id="browse-glb-button" type="button">Browse GLB</button>
+                    <button id="glb-browse-button" type="button">Browse</button>
+                    <button id="glb-url-button" type="button">URL</button>
                     <input id="glb-file-input" type="file" accept=".glb,model/gltf-binary" hidden multiple>
                 </div>
             </div>
@@ -123,9 +177,14 @@
                 <button id="change-skybox-button" class="change-button">Change Skybox</button>
                 <div id="skybox-name" class="test-control-value"></div>
             </div>       
+            <div id="tonemapping-controls" class="test-controls">
+                <label for="tone-mapping-select">Tone Mapping</label>
+                <select id="tone-mapping-select"></select>
+            </div>            
             <div id="exposure-controls" class="test-controls">
-                <input id="exposure-slider" type="range" min="0.25" max="2.5" step="0.05" value="0.9">
-                <span id="exposure-value" class="test-control-value">0.9</span>
+                <label for="exposure-slider">Exposure</label>
+                <input id="exposure-slider" type="range" min="0.25" max="2.5" step="0.05" value="1.0">
+                <span id="exposure-value" class="test-control-value">1.0</span>
             </div>
         </div>
 
@@ -134,8 +193,6 @@
                     id="model-viewer"
                     alt="A 3D model of a Eyeglass/Sunglass"
                     shadow-intensity="1"
-                    exposure="0.9"
-                    skybox-image="./env/bg_brown.jpg"
                     environment-image="./env/env_2.hdr"
                     tone-mapping="aces"
                     camera-controls
@@ -152,10 +209,8 @@
     <script type="text/javascript">
             const skyboxImages = [
                 null,                
-                "./skybox/bg_black.jpg",
-                "./skybox/bg_brown.jpg",
+                "./skybox/cloudy.jpg",
                 "./skybox/bg_grey.jpg",
-                "./skybox/cloudy.jpg",                
             ];
             let currentSkybox = 0;
 
@@ -167,9 +222,15 @@
             const envs = [
                 { url: "./env/env_2.hdr", name: "env_2" },
                 { url: "./env/env_12.hdr", name: "env_12" },
-                { url: "./env/cloudy.jpg", name: "cloudy" },
             ]
             let currentEnv = 0;            
+            const toneMappingOptions = [
+                { value: "aces", label: "ACES" },
+                { value: "linear", label: "Linear" },                
+                { value: "neutral", label: "Neutral" },
+                { value: "agx", label: "AgX" },
+                { value: "reinhard", label: "Reinhard" },
+            ];
 
             function updateSkybox() {
                 const skyboxUrl = skyboxImages[currentSkybox];
@@ -237,6 +298,21 @@
                 return file.type === "model/gltf-binary" || lowerName.endsWith(".glb");
             }
 
+            function upsertAsset({ url, name, revokable = false }) {
+                const existingIndex = assets.findIndex((asset) => asset.url === url || asset.name === name);
+                const nextAsset = { url, name, revokable };
+                if (existingIndex >= 0) {
+                    const existing = assets[existingIndex];
+                    if (existing.revokable) {
+                        URL.revokeObjectURL(existing.url);
+                    }
+                    assets[existingIndex] = nextAsset;
+                    return existingIndex;
+                }
+                assets.push(nextAsset);
+                return assets.length - 1;
+            }
+
             function addDroppedModels(fileList) {
                 const files = Array.from(fileList || []).filter(isGlbFile);
                 if (!files.length) {
@@ -250,22 +326,9 @@
                     }
                     const url = URL.createObjectURL(file);
                     const name = skuId;
-                    const existingIndex = assets.findIndex((asset) => asset.name === name);
-                    const nextAsset = { url, name, revokable: true };
-                    if (existingIndex >= 0) {
-                        const existing = assets[existingIndex];
-                        if (existing.revokable) {
-                            URL.revokeObjectURL(existing.url);
-                        }
-                        assets[existingIndex] = nextAsset;
-                        if (firstIndex === null) {
-                            firstIndex = existingIndex;
-                        }
-                    } else {
-                        assets.push(nextAsset);
-                        if (firstIndex === null) {
-                            firstIndex = assets.length - 1;
-                        }
+                    const index = upsertAsset({ url, name, revokable: true });
+                    if (firstIndex === null) {
+                        firstIndex = index;
                     }
                 });
                 if (firstIndex !== null) {
@@ -274,10 +337,89 @@
                 }
             }
 
+            function isValidGlbUrl(urlString) {
+                try {
+                    const url = new URL(urlString, window.location.href);
+                    const pathname = url.pathname.toLowerCase();
+                    return pathname.endsWith(".glb");
+                } catch {
+                    return false;
+                }
+            }
+
+            function getNameFromUrl(rawUrl) {
+                const cleaned = rawUrl.split("#")[0].split("?")[0];
+                const lastSlash = cleaned.lastIndexOf("/");
+                const filename = lastSlash >= 0 ? cleaned.slice(lastSlash + 1) : cleaned;
+                if (!filename) {
+                    return "remote-model";
+                }
+                const skuId = extractSkuId(filename);
+                if (skuId) {
+                    return skuId;
+                }
+                return filename.replace(/\.glb$/i, "") || filename;
+            }
+
+            async function addGlbUrl(rawUrl) {
+                const trimmed = rawUrl.trim();
+                if (!trimmed) {
+                    return;
+                }
+                if (!isValidGlbUrl(trimmed)) {
+                    alert("Please enter a valid .glb URL.");
+                    return;
+                }
+                const name = getNameFromUrl(trimmed);
+                let assetUrl = trimmed;
+                let revokable = false;
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 15000);
+                    const response = await fetch(trimmed, { signal: controller.signal, mode: "cors" });
+                    clearTimeout(timeoutId);
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                    const blob = await response.blob();
+                    assetUrl = URL.createObjectURL(blob);
+                    revokable = true;
+                } catch (error) {
+                    const message = error?.name === "AbortError"
+                        ? "Download timed out. Please try again."
+                        : "Unable to download the GLB (likely CORS blocked). Use a CORS-enabled URL or proxy.";
+                    alert(message);
+                    return;
+                }
+
+                currentAsset = upsertAsset({ url: assetUrl, name, revokable });
+                setupProductUrls();
+            }
+
             function updateExposure() {
                 const exposure = exposureSlider.value;
                 modelViewer.setAttribute('exposure', exposure);
-                exposureValue.textContent = "Exposure: " + exposure;
+                exposureValue.textContent = exposure;
+            }
+
+            function buildToneMappingOptions() {
+                toneMappingSelect.innerHTML = "";
+                toneMappingOptions.forEach((option) => {
+                    const element = document.createElement("option");
+                    element.value = option.value;
+                    element.textContent = option.label;
+                    toneMappingSelect.appendChild(element);
+                });
+            }
+
+            function updateToneMapping(nextValue) {
+                const current = modelViewer.getAttribute("tone-mapping");
+                const fallback = toneMappingOptions[0]?.value || "aces";
+                const desired = nextValue || toneMappingSelect.value || current || fallback;
+                const isKnown = toneMappingOptions.some((option) => option.value === desired);
+                const selected = isKnown ? desired : fallback;
+                toneMappingSelect.value = selected;
+                modelViewer.setAttribute("tone-mapping", selected);
             }
 
             function isEnvFile(file) {
@@ -321,10 +463,14 @@
             const exposureSlider = document.getElementById('exposure-slider');
             const exposureValue = document.getElementById('exposure-value');
             const dropzoneTarget = document.getElementById('dropzone-target');
-            const browseGlbButton = document.getElementById('browse-glb-button');
+            const browseGlbButton = document.getElementById('glb-browse-button');
+            const urlGlbButton = document.getElementById('glb-url-button');
             const glbFileInput = document.getElementById('glb-file-input');
             const browseEnvButton = document.getElementById('browse-env-button');
             const envFileInput = document.getElementById('env-file-input');
+            const toneMappingSelect = document.getElementById('tone-mapping-select');
+            const controlsToggle = document.getElementById('controls-toggle');
+            const controlsContainer = document.getElementById('test-controls-container');
 
             skuIdInput.style.display = 'none';
 
@@ -355,8 +501,25 @@
                 updateExposure();
             });
 
+            toneMappingSelect.addEventListener("change", (event) => {
+                updateToneMapping(event.target.value);
+            });
+
+            controlsToggle.addEventListener("click", () => {
+                const isCollapsed = controlsContainer.classList.toggle("is-collapsed");
+                controlsToggle.setAttribute("aria-expanded", String(!isCollapsed));
+                controlsToggle.textContent = isCollapsed ? "+" : "-";
+            });
+
             browseGlbButton.addEventListener('click', () => {
                 glbFileInput.click();
+            });
+
+            urlGlbButton.addEventListener('click', async () => {
+                const input = prompt("Enter a .glb URL");
+                if (input != null) {
+                    await addGlbUrl(input);
+                }
             });
 
             glbFileInput.addEventListener('change', (event) => {
@@ -432,6 +595,8 @@
             updateSkybox();
             updateEnv();            
             setupProductUrls();
-            updateExposure();       
+            updateExposure();    
+            buildToneMappingOptions();
+            updateToneMapping();   
     </script>
 </html>
