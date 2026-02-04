@@ -19,11 +19,18 @@
                 border-radius: 12px;
                 gap: 20px;     
                 padding: 10px;    
+                left: 12px;
+                right: auto;
+                top: 12px;
                 z-index: 1;       
             }
 
-            .controls-header {
+            #test-controls-container.is-collapsed .test-controls {
                 display: none;
+            }
+
+            .controls-header {
+                display: flex;
                 align-items: center;
                 justify-content: space-between;
                 gap: 10px;
@@ -32,11 +39,13 @@
             }
 
             #controls-toggle {
-                display: none;
+                display: block;
+                text-align: center;
                 border: 1px solid rgba(255,255,255,0.5);
                 background: rgba(0,0,0,0.35);
                 color: white;
-                padding: 4px 8px;
+                min-height: 24px;
+                min-width: 24px;
                 border-radius: 6px;
                 font-size: 12px;
             }
@@ -112,33 +121,13 @@
                 letter-spacing: 0.5px;
             }
 
-            @media (max-width: 768px) {
+            @media (max-width: 1024px) {
                 #test-controls-container {
                     flex-direction: column;
                     align-items: stretch;
                     gap: 12px;
                     padding: 12px;
                     width: min(92vw, 360px);
-                    left: 12px;
-                    right: auto;
-                    top: 12px;
-                }
-
-                .controls-header {
-                    display: flex;
-                }
-
-                #controls-toggle {
-                    display: inline-flex;
-                }
-
-                #test-controls-container.is-collapsed .test-controls {
-                    display: none;
-                }
-
-                #test-controls-container.is-collapsed {
-                    gap: 0;
-                    padding: 10px 12px;
                 }
 
                 .test-controls-row {
@@ -153,9 +142,7 @@
                     min-width: 0;
                 }
 
-                #exposure-slider {
-                    width: 100%;
-                }
+      
             }
         </style>
       <script type="module" crossorigin src="/lk-model-viewer/assets/main-ghxNzQXj.js"></script>
