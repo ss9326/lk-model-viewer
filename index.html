@@ -190,16 +190,15 @@
 
         <div id="card">
             <model-viewer
-                    id="model-viewer"
-                    alt="A 3D model of a Eyeglass/Sunglass"
-                    shadow-intensity="1"
-                    environment-image="./env/env_2.hdr"
-                    tone-mapping="aces"
-                    camera-controls
-                    camera-target="0m 0m 0m"
-                    touch-action="none"
-                    auto-rotate=true>
-            </model-viewer>            
+                id="model-viewer"
+                alt="A 3D model of a Eyeglass/Sunglass"
+                environment-image="/static/env/env_2.hdr"
+                shadow-intensity="1"
+                tone-mapping="aces"
+                auto-rotate
+                camera-controls
+                auto-camera-target="bottom">
+            </model-viewer>
         </div>
         <div id="dropzone-target">
             <div id="dropzone-message">Drop GLB/HDR/JPG here!</div>
@@ -209,8 +208,9 @@
     <script type="text/javascript">
             const skyboxImages = [
                 null,                
-                "./skybox/cloudy.jpg",
+                "./skybox/bg_offwhite.jpg",
                 "./skybox/bg_grey.jpg",
+                "./skybox/bg_beige.jpg",
             ];
             let currentSkybox = 0;
 
