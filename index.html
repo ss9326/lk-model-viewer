@@ -141,8 +141,6 @@
                 #exposure-controls {
                     min-width: 0;
                 }
-
-      
             }
         </style>
       <script type="module" crossorigin src="/lk-model-viewer/assets/main-ghxNzQXj.js"></script>
@@ -199,7 +197,7 @@
                     environment-image="./env/env_2.hdr"
                     tone-mapping="aces"
                     camera-controls
-                    camera-target="0m 0m 0m"
+                    auto-camera-target
                     touch-action="none"
                     auto-rotate=true>
             </model-viewer>            
@@ -214,6 +212,7 @@
                 null,                
                 "./skybox/cloudy.jpg",
                 "./skybox/bg_grey.jpg",
+                "./skybox/bg_black.jpg",
             ];
             let currentSkybox = 0;
 
