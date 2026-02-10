@@ -5,10 +5,10 @@
         <meta charset="utf-8">
         <meta name="viewport"
               content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-        <link rel="stylesheet" href="/static/css/style.css">
+        <link rel="stylesheet" href="/lk-model-viewer/static/css/style.css">
 
-        <script type="module" src="/static/libs/model-viewer.min.js"></script>
-        <script nomodule src="/static/libs/model-viewer-umd.min.js"></script>        
+        <script type="module" src="/lk-model-viewer/static/libs/model-viewer.min.js"></script>
+        <script nomodule src="/lk-model-viewer/static/libs/model-viewer-umd.min.js"></script>        
         <style>
 
             #test-controls-container {
@@ -162,7 +162,7 @@
                 }
             }
         </style>
-      <script type="module" crossorigin src="/assets/main-B5Qt9EMX.js"></script>
+      <script type="module" crossorigin src="/lk-model-viewer/assets/main-B5Qt9EMX.js"></script>
     </head>
     <body>
         <div id="test-controls-container" class="is-collapsed">
@@ -224,27 +224,27 @@
             <div id="dropzone-message">Drop GLB/HDR/JPG here!</div>
         </div>
         <div id="fullscreen-loader" aria-hidden="true">
-            <img src="/static/image/loading.gif" alt="Loading">
+            <img src="/lk-model-viewer/static/image/loading.gif" alt="Loading">
         </div>
     </body>
 
     <script type="text/javascript">
             const skyboxImages = [
                 null,                
-                "/static/skybox/bg_offwhite.jpg",
-                "/static/skybox/bg_grey.jpg",
-                "/static/skybox/bg_beige.jpg",
+                "static/skybox/bg_offwhite.jpg",
+                "static/skybox/bg_grey.jpg",
+                "static/skybox/bg_beige.jpg",
             ];
             let currentSkybox = 0;
 
             const assets = [
-                { url: "/static/assets/206272.glb", name: "206272" },
+                { url: "static/assets/206272.glb", name: "206272" },
             ]
             let currentAsset = 0;
 
             const envs = [
-                { url: "/static/env/env_2.hdr", name: "env_2" },
-                { url: "/static/env/env_12.hdr", name: "env_12" },
+                { url: "static/env/env_2.hdr", name: "env_2" },
+                { url: "static/env/env_12.hdr", name: "env_12" },
             ]
             let currentEnv = 0;            
             const toneMappingOptions = [
