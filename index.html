@@ -122,6 +122,24 @@
                 letter-spacing: 0.5px;
             }
 
+            #fullscreen-loader {
+                position: fixed;
+                inset: 0;
+                display: none;
+                align-items: center;
+                justify-content: center;
+                background: rgba(0, 0, 0, 0.55);
+                z-index: 9999;
+            }
+
+            #fullscreen-loader.is-visible {
+                display: flex;
+            }
+
+            #fullscreen-loader img {
+                object-fit: contain;
+            }
+
             @media (max-width: 1024px) {
                 #test-controls-container {
                     flex-direction: column;
@@ -192,6 +210,7 @@
             <model-viewer
                 id="model-viewer"
                 alt="A 3D model of a Eyeglass/Sunglass"
+                poster="/static/image/loading.gif" 
                 environment-image="/static/env/env_2.hdr"
                 shadow-intensity="1"
                 tone-mapping="aces"
@@ -202,6 +221,9 @@
         </div>
         <div id="dropzone-target">
             <div id="dropzone-message">Drop GLB/HDR/JPG here!</div>
+        </div>
+        <div id="fullscreen-loader" aria-hidden="true">
+            <img src="/static/image/loading.gif" alt="Loading">
         </div>
     </body>
 
@@ -361,18 +383,23 @@
                 return filename.replace(/\.glb$/i, "") || filename;
             }
 
+            function delay(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+
             async function addGlbUrl(rawUrl) {
                 const trimmed = rawUrl.trim();
                 if (!trimmed) {
-                    return;
+                    return false;
                 }
                 if (!isValidGlbUrl(trimmed)) {
                     alert("Please enter a valid .glb URL.");
-                    return;
+                    return false;
                 }
                 const name = getNameFromUrl(trimmed);
                 let assetUrl = trimmed;
                 let revokable = false;
+                fullscreenLoader.classList.add("is-visible");
                 try {
                     const controller = new AbortController();
                     const timeoutId = setTimeout(() => controller.abort(), 15000);
@@ -388,12 +415,33 @@
                     const message = error?.name === "AbortError"
                         ? "Download timed out. Please try again."
                         : "Unable to download the GLB (likely CORS blocked). Use a CORS-enabled URL or proxy.";
-                    alert(message);
-                    return;
+                    //alert(message);
+                    await delay(3000)
+
+                    return false;
+                } finally {
+                    fullscreenLoader.classList.remove("is-visible");
                 }
 
                 currentAsset = upsertAsset({ url: assetUrl, name, revokable });
                 setupProductUrls();
+                return true;
+            }
+
+            async function handleSkuQueryParam() {
+                const params = new URLSearchParams(window.location.search);
+                const sku = params.get("sku");
+                if (!sku) {
+                    return false;
+                }
+                const trimmed = sku.trim();
+                if (!trimmed) {
+                    return false;
+                }
+                skuIdInput.value = trimmed;
+                const encoded = encodeURIComponent(trimmed);
+                const url = `https://lookr-static.lenskart.com/frameassets/${encoded}/orignal/sku_${encoded}.glb`;
+                return await addGlbUrl(url);
             }
 
             function updateExposure() {
@@ -471,6 +519,7 @@
             const toneMappingSelect = document.getElementById('tone-mapping-select');
             const controlsToggle = document.getElementById('controls-toggle');
             const controlsContainer = document.getElementById('test-controls-container');
+            const fullscreenLoader = document.getElementById('fullscreen-loader');
 
             skuIdInput.style.display = 'none';
 
@@ -594,9 +643,13 @@
 
             updateSkybox();
             updateEnv();            
-            setupProductUrls();
             updateExposure();    
             buildToneMappingOptions();
             updateToneMapping();   
+            handleSkuQueryParam().then((handled) => {
+                if (!handled) {
+                    setupProductUrls();
+                }
+            });
     </script>
 </html>
