@@ -7,8 +7,8 @@
               content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
         <link rel="stylesheet" href="/static/css/style.css">
 
-        <script type="module" src="/static/libs/model-viewer.min.js"></script>
-        <script nomodule src="/static/libs/model-viewer-umd.min.js"></script>        
+        <script type="module" src="/static/js/model-viewer.min.js"></script>
+        <script nomodule src="/static/js/model-viewer-umd.min.js"></script>        
         <style>
 
             #test-controls-container {
@@ -76,10 +76,6 @@
                 font-size: 16px;
             }     
 
-            #sku-id-input {
-                margin-right: 5px;
-            }            
-
             #exposure-controls {
                 min-width: 125px;
             }
@@ -140,6 +136,28 @@
                 object-fit: contain;
             }
 
+            #toast {
+                position: fixed;
+                left: 50%;
+                bottom: 24px;
+                transform: translateX(-50%) translateY(20px);
+                background: rgba(20, 20, 20, 0.92);
+                color: #fff;
+                padding: 10px 16px;
+                border-radius: 10px;
+                font-size: 14px;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+                opacity: 0;
+                pointer-events: none;
+                transition: opacity 0.2s ease, transform 0.2s ease;
+                z-index: 10000;
+            }
+
+            #toast.is-visible {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+
             @media (max-width: 1024px) {
                 #test-controls-container {
                     flex-direction: column;
@@ -170,7 +188,6 @@
                 <button id="controls-toggle" type="button" aria-expanded="false">+</button>
             </div>
             <div id="model-controls" class="test-controls">
-                <input type="text" id="sku-id-input" placeholder="Enter SKU ID">
                 <div class="test-controls-row">
                     <button id="change-model-l-button">&lt;</button>
                     <div>Change Model <span id="model-index"></span></div>
@@ -199,6 +216,12 @@
                 <label for="tone-mapping-select">Tone Mapping</label>
                 <select id="tone-mapping-select"></select>
             </div>            
+            <div id="ground-controls" class="test-controls">
+                <label>
+                    <input id="auto-ground" type="checkbox">
+                    Auto-ground
+                </label>
+            </div>
             <div id="exposure-controls" class="test-controls">
                 <label for="exposure-slider">Exposure</label>
                 <input id="exposure-slider" type="range" min="0.25" max="2.5" step="0.05" value="1.0">
@@ -215,6 +238,7 @@
                 shadow-intensity="1"
                 tone-mapping="aces"
                 auto-rotate
+                auto-ground
                 camera-controls
                 auto-camera-target="bottom">
             </model-viewer>
@@ -225,6 +249,7 @@
         <div id="fullscreen-loader" aria-hidden="true">
             <img src="/static/image/loading.gif" alt="Loading">
         </div>
+        <div id="toast" role="status" aria-live="polite"></div>
     </body>
 
     <script type="text/javascript">
@@ -237,7 +262,7 @@
             let currentSkybox = 0;
 
             const assets = [
-                { url: "static/assets/206272.glb", name: "206272" },
+                { url: "static/image/sku_206272.glb", name: "206272" },
             ]
             let currentAsset = 0;
 
@@ -297,20 +322,13 @@
             }
 
             function onModelChangeEvent(next = true) {
-                const skuId = skuIdInput.value.trim();
-                var asset;
-                if (skuId) {
-                    asset = assets.filter(p => p.name == skuId)[0]
-                    if (!asset) return
-                } else {
-                    const totalAssets = assets.length;
-                    if (!totalAssets) {
-                        return;
-                    }
-                    add = next ? 1 : -1
-                    currentAsset = (currentAsset + add + totalAssets) % totalAssets;
-                    asset = getAssetByIndex(currentAsset);
+                const totalAssets = assets.length;
+                if (!totalAssets) {
+                    return;
                 }
+                add = next ? 1 : -1
+                currentAsset = (currentAsset + add + totalAssets) % totalAssets;
+                const asset = getAssetByIndex(currentAsset);
                 setupProductUrls(asset)                
             }
 
@@ -393,7 +411,7 @@
                     return false;
                 }
                 if (!isValidGlbUrl(trimmed)) {
-                    alert("Please enter a valid .glb URL.");
+                    showToast("Please enter a valid .glb URL.");
                     return false;
                 }
                 const name = getNameFromUrl(trimmed);
@@ -415,9 +433,7 @@
                     const message = error?.name === "AbortError"
                         ? "Download timed out. Please try again."
                         : "Unable to download the GLB (likely CORS blocked). Use a CORS-enabled URL or proxy.";
-                    //alert(message);
-                    await delay(3000)
-
+                    showToast(message);
                     return false;
                 } finally {
                     fullscreenLoader.classList.remove("is-visible");
@@ -438,10 +454,12 @@
                 if (!trimmed) {
                     return false;
                 }
-                skuIdInput.value = trimmed;
-                const encoded = encodeURIComponent(trimmed);
-                const url = `https://lookr-static.lenskart.com/frameassets/${encoded}/orignal/sku_${encoded}.glb`;
-                return await addGlbUrl(url);
+                return await addGlbUrl(buildSkuGlbUrl(trimmed));
+            }
+
+            function buildSkuGlbUrl(skuId) {
+                const encoded = encodeURIComponent(skuId.trim());
+                return `https://lookr-static.lenskart.com/frameassets/${encoded}/orignal/sku_${encoded}.glb`;
             }
 
             function updateExposure() {
@@ -503,7 +521,6 @@
             const skyboxName = document.getElementById('skybox-name');
             const changeEnvButton = document.getElementById('change-env-button');            
             const envName = document.getElementById('env-name');            
-            const skuIdInput = document.getElementById('sku-id-input');
             const modelName = document.getElementById('model-name');     
             const modelIndex = document.getElementById('model-index');
             const changeModelRButton = document.getElementById('change-model-r-button');
@@ -520,8 +537,22 @@
             const controlsToggle = document.getElementById('controls-toggle');
             const controlsContainer = document.getElementById('test-controls-container');
             const fullscreenLoader = document.getElementById('fullscreen-loader');
+            const autoGround = document.getElementById('auto-ground');
+            const toast = document.getElementById('toast');
+            let toastTimeout = null;
 
-            skuIdInput.style.display = 'none';
+            function showToast(message, duration = 3500) {
+                if (!toast) return;
+                toast.textContent = message;
+                toast.classList.add("is-visible");
+                if (toastTimeout) {
+                    clearTimeout(toastTimeout);
+                }
+                toastTimeout = setTimeout(() => {
+                    toast.classList.remove("is-visible");
+                }, duration);
+            }
+
 
             changeSkyboxButton.addEventListener('click', () => {
                 currentSkybox = (currentSkybox + 1) % skyboxImages.length;
@@ -540,11 +571,6 @@
                 onModelChangeEvent(false);
             });
 
-            skuIdInput.addEventListener("keyup", ({key}) => {
-                if (key === "Enter") {
-                    onModelChangeEvent();
-                }
-            })
 
             exposureSlider.addEventListener('input', () => {
                 updateExposure();
@@ -552,6 +578,12 @@
 
             toneMappingSelect.addEventListener("change", (event) => {
                 updateToneMapping(event.target.value);
+            });
+
+            autoGround.checked = modelViewer.hasAttribute("auto-ground");
+
+            autoGround.addEventListener("change", (event) => {
+                modelViewer.toggleAttribute("auto-ground", event.target.checked);
             });
 
             controlsToggle.addEventListener("click", () => {
@@ -565,9 +597,17 @@
             });
 
             urlGlbButton.addEventListener('click', async () => {
-                const input = prompt("Enter a .glb URL");
+                const input = prompt("Enter a .glb URL or SKU");
                 if (input != null) {
-                    await addGlbUrl(input);
+                    const trimmed = input.trim();
+                    if (!trimmed) {
+                        return;
+                    }
+                    if (isValidGlbUrl(trimmed)) {
+                        await addGlbUrl(trimmed);
+                    } else {
+                        await addGlbUrl(buildSkuGlbUrl(trimmed));
+                    }
                 }
             });
 
