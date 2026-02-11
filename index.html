@@ -200,6 +200,12 @@
                 <label for="tone-mapping-select">Tone Mapping</label>
                 <select id="tone-mapping-select"></select>
             </div>            
+            <div id="ground-controls" class="test-controls">
+                <label>
+                    <input id="auto-ground" type="checkbox">
+                    Auto-ground
+                </label>
+            </div>
             <div id="exposure-controls" class="test-controls">
                 <label for="exposure-slider">Exposure</label>
                 <input id="exposure-slider" type="range" min="0.25" max="2.5" step="0.05" value="1.0">
@@ -216,6 +222,7 @@
                 shadow-intensity="1"
                 tone-mapping="aces"
                 auto-rotate
+                auto-ground
                 camera-controls
                 auto-camera-target="bottom">
             </model-viewer>
@@ -521,6 +528,7 @@
             const controlsToggle = document.getElementById('controls-toggle');
             const controlsContainer = document.getElementById('test-controls-container');
             const fullscreenLoader = document.getElementById('fullscreen-loader');
+            const autoGround = document.getElementById('auto-ground');
 
             skuIdInput.style.display = 'none';
 
@@ -553,6 +561,12 @@
 
             toneMappingSelect.addEventListener("change", (event) => {
                 updateToneMapping(event.target.value);
+            });
+
+            autoGround.checked = modelViewer.hasAttribute("auto-ground");
+
+            autoGround.addEventListener("change", (event) => {
+                modelViewer.toggleAttribute("auto-ground", event.target.checked);
             });
 
             controlsToggle.addEventListener("click", () => {
