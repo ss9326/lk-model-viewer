@@ -140,6 +140,28 @@
                 object-fit: contain;
             }
 
+            #toast {
+                position: fixed;
+                left: 50%;
+                bottom: 24px;
+                transform: translateX(-50%) translateY(20px);
+                background: rgba(20, 20, 20, 0.92);
+                color: #fff;
+                padding: 10px 16px;
+                border-radius: 10px;
+                font-size: 14px;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+                opacity: 0;
+                pointer-events: none;
+                transition: opacity 0.2s ease, transform 0.2s ease;
+                z-index: 10000;
+            }
+
+            #toast.is-visible {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+
             @media (max-width: 1024px) {
                 #test-controls-container {
                     flex-direction: column;
@@ -233,6 +255,7 @@
         <div id="fullscreen-loader" aria-hidden="true">
             <img src="/lk-model-viewer/static/image/loading.gif" alt="Loading">
         </div>
+        <div id="toast" role="status" aria-live="polite"></div>
     </body>
 
     <script type="text/javascript">
@@ -401,7 +424,7 @@
                     return false;
                 }
                 if (!isValidGlbUrl(trimmed)) {
-                    alert("Please enter a valid .glb URL.");
+                    showToast("Please enter a valid .glb URL.");
                     return false;
                 }
                 const name = getNameFromUrl(trimmed);
@@ -423,9 +446,7 @@
                     const message = error?.name === "AbortError"
                         ? "Download timed out. Please try again."
                         : "Unable to download the GLB (likely CORS blocked). Use a CORS-enabled URL or proxy.";
-                    //alert(message);
-                    await delay(3000)
-
+                    showToast(message);
                     return false;
                 } finally {
                     fullscreenLoader.classList.remove("is-visible");
@@ -447,9 +468,12 @@
                     return false;
                 }
                 skuIdInput.value = trimmed;
-                const encoded = encodeURIComponent(trimmed);
-                const url = `https://lookr-static.lenskart.com/frameassets/${encoded}/orignal/sku_${encoded}.glb`;
-                return await addGlbUrl(url);
+                return await addGlbUrl(buildSkuGlbUrl(trimmed));
+            }
+
+            function buildSkuGlbUrl(skuId) {
+                const encoded = encodeURIComponent(skuId.trim());
+                return `https://lookr-static.lenskart.com/frameassets/${encoded}/orignal/sku_${encoded}.glb`;
             }
 
             function updateExposure() {
@@ -529,6 +553,20 @@
             const controlsContainer = document.getElementById('test-controls-container');
             const fullscreenLoader = document.getElementById('fullscreen-loader');
             const autoGround = document.getElementById('auto-ground');
+            const toast = document.getElementById('toast');
+            let toastTimeout = null;
+
+            function showToast(message, duration = 3500) {
+                if (!toast) return;
+                toast.textContent = message;
+                toast.classList.add("is-visible");
+                if (toastTimeout) {
+                    clearTimeout(toastTimeout);
+                }
+                toastTimeout = setTimeout(() => {
+                    toast.classList.remove("is-visible");
+                }, duration);
+            }
 
             skuIdInput.style.display = 'none';
 
@@ -580,9 +618,18 @@
             });
 
             urlGlbButton.addEventListener('click', async () => {
-                const input = prompt("Enter a .glb URL");
+                const input = prompt("Enter a .glb URL or SKU");
                 if (input != null) {
-                    await addGlbUrl(input);
+                    const trimmed = input.trim();
+                    if (!trimmed) {
+                        return;
+                    }
+                    if (isValidGlbUrl(trimmed)) {
+                        await addGlbUrl(trimmed);
+                    } else {
+                        skuIdInput.value = trimmed;
+                        await addGlbUrl(buildSkuGlbUrl(trimmed));
+                    }
                 }
             });
 
