@@ -222,6 +222,12 @@
                     Auto-ground
                 </label>
             </div>
+            <div id="flip-x-controls" class="test-controls">
+                <label>
+                    <input id="flip-x" type="checkbox">
+                    Flip X
+                </label>
+            </div>
             <div id="exposure-controls" class="test-controls">
                 <label for="exposure-slider">Exposure</label>
                 <input id="exposure-slider" type="range" min="0.25" max="2.5" step="0.05" value="1.0">
@@ -239,6 +245,7 @@
                 tone-mapping="aces"
                 auto-rotate
                 auto-ground
+                flip-x
                 camera-controls
                 auto-camera-target="bottom">
             </model-viewer>
@@ -538,6 +545,7 @@
             const controlsContainer = document.getElementById('test-controls-container');
             const fullscreenLoader = document.getElementById('fullscreen-loader');
             const autoGround = document.getElementById('auto-ground');
+            const flipX = document.getElementById('flip-x');
             const toast = document.getElementById('toast');
             let toastTimeout = null;
 
@@ -581,9 +589,14 @@
             });
 
             autoGround.checked = modelViewer.hasAttribute("auto-ground");
+            flipX.checked = modelViewer.hasAttribute("flip-x");
 
             autoGround.addEventListener("change", (event) => {
                 modelViewer.toggleAttribute("auto-ground", event.target.checked);
+            });
+
+            flipX.addEventListener("change", (event) => {
+                modelViewer.toggleAttribute("flip-x", event.target.checked);
             });
 
             controlsToggle.addEventListener("click", () => {
@@ -691,5 +704,15 @@
                     setupProductUrls();
                 }
             });
+
+            modelViewer.addEventListener('load', (event) => {
+                console.log("Model Load Status = Success")
+            });
+
+            modelViewer.addEventListener('error', (event) => {
+                if (event.detail && event.detail.sourceError) {
+                    console.log("Model Load Status = Failed: " + event.detail.sourceError)
+                }
+            });            
     </script>
 </html>
