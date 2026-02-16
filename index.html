@@ -76,10 +76,6 @@
                 font-size: 16px;
             }     
 
-            #sku-id-input {
-                margin-right: 5px;
-            }            
-
             #exposure-controls {
                 min-width: 125px;
             }
@@ -193,7 +189,6 @@
                 <button id="controls-toggle" type="button" aria-expanded="false">+</button>
             </div>
             <div id="model-controls" class="test-controls">
-                <input type="text" id="sku-id-input" placeholder="Enter SKU ID">
                 <div class="test-controls-row">
                     <button id="change-model-l-button">&lt;</button>
                     <div>Change Model <span id="model-index"></span></div>
@@ -228,6 +223,12 @@
                     Auto-ground
                 </label>
             </div>
+            <div id="flip-x-controls" class="test-controls">
+                <label>
+                    <input id="flip-x" type="checkbox">
+                    Flip X
+                </label>
+            </div>
             <div id="exposure-controls" class="test-controls">
                 <label for="exposure-slider">Exposure</label>
                 <input id="exposure-slider" type="range" min="0.25" max="2.5" step="0.05" value="1.0">
@@ -245,6 +246,7 @@
                 tone-mapping="aces"
                 auto-rotate
                 auto-ground
+                flip-x
                 camera-controls
                 auto-camera-target="bottom">
             </model-viewer>
@@ -328,20 +330,13 @@
             }
 
             function onModelChangeEvent(next = true) {
-                const skuId = skuIdInput.value.trim();
-                var asset;
-                if (skuId) {
-                    asset = assets.filter(p => p.name == skuId)[0]
-                    if (!asset) return
-                } else {
-                    const totalAssets = assets.length;
-                    if (!totalAssets) {
-                        return;
-                    }
-                    add = next ? 1 : -1
-                    currentAsset = (currentAsset + add + totalAssets) % totalAssets;
-                    asset = getAssetByIndex(currentAsset);
+                const totalAssets = assets.length;
+                if (!totalAssets) {
+                    return;
                 }
+                add = next ? 1 : -1
+                currentAsset = (currentAsset + add + totalAssets) % totalAssets;
+                const asset = getAssetByIndex(currentAsset);
                 setupProductUrls(asset)                
             }
 
@@ -467,7 +462,6 @@
                 if (!trimmed) {
                     return false;
                 }
-                skuIdInput.value = trimmed;
                 return await addGlbUrl(buildSkuGlbUrl(trimmed));
             }
 
@@ -535,7 +529,6 @@
             const skyboxName = document.getElementById('skybox-name');
             const changeEnvButton = document.getElementById('change-env-button');            
             const envName = document.getElementById('env-name');            
-            const skuIdInput = document.getElementById('sku-id-input');
             const modelName = document.getElementById('model-name');     
             const modelIndex = document.getElementById('model-index');
             const changeModelRButton = document.getElementById('change-model-r-button');
@@ -553,6 +546,7 @@
             const controlsContainer = document.getElementById('test-controls-container');
             const fullscreenLoader = document.getElementById('fullscreen-loader');
             const autoGround = document.getElementById('auto-ground');
+            const flipX = document.getElementById('flip-x');
             const toast = document.getElementById('toast');
             let toastTimeout = null;
 
@@ -568,7 +562,6 @@
                 }, duration);
             }
 
-            skuIdInput.style.display = 'none';
 
             changeSkyboxButton.addEventListener('click', () => {
                 currentSkybox = (currentSkybox + 1) % skyboxImages.length;
@@ -587,11 +580,6 @@
                 onModelChangeEvent(false);
             });
 
-            skuIdInput.addEventListener("keyup", ({key}) => {
-                if (key === "Enter") {
-                    onModelChangeEvent();
-                }
-            })
 
             exposureSlider.addEventListener('input', () => {
                 updateExposure();
@@ -602,9 +590,14 @@
             });
 
             autoGround.checked = modelViewer.hasAttribute("auto-ground");
+            flipX.checked = modelViewer.hasAttribute("flip-x");
 
             autoGround.addEventListener("change", (event) => {
                 modelViewer.toggleAttribute("auto-ground", event.target.checked);
+            });
+
+            flipX.addEventListener("change", (event) => {
+                modelViewer.toggleAttribute("flip-x", event.target.checked);
             });
 
             controlsToggle.addEventListener("click", () => {
@@ -627,7 +620,6 @@
                     if (isValidGlbUrl(trimmed)) {
                         await addGlbUrl(trimmed);
                     } else {
-                        skuIdInput.value = trimmed;
                         await addGlbUrl(buildSkuGlbUrl(trimmed));
                     }
                 }
@@ -713,5 +705,15 @@
                     setupProductUrls();
                 }
             });
+
+            modelViewer.addEventListener('load', (event) => {
+                console.log("Model Load Status = Success")
+            });
+
+            modelViewer.addEventListener('error', (event) => {
+                if (event.detail && event.detail.sourceError) {
+                    console.log("Model Load Status = Failed: " + event.detail.sourceError)
+                }
+            });            
     </script>
 </html>
