@@ -208,7 +208,7 @@
                 <div id="env-name" class="test-control-value"></div>
                 <div>
                     <button id="browse-env-button" type="button">Browse HDR/JPG</button>
-                    <input id="env-file-input" type="file" accept=".hdr,.jpg,.jpeg" hidden multiple>
+                    <input id="env-file-input" type="file" accept=".hdr,.jpg,.jpeg,.zip,application/zip" hidden multiple>
                 </div>                
             </div>     
             <div id="skybox-controls" class="test-controls">
@@ -380,6 +380,33 @@
                 return names.length ? names[0] : null;
             }
 
+            function getFirstEnvEntryNameFromZip(zip) {
+                const names = Object.keys(zip.files)
+                    .filter((name) => {
+                        if (zip.files[name].dir) {
+                            return false;
+                        }
+                        const lowerName = name.toLowerCase();
+                        return lowerName.endsWith(".hdr") || lowerName.endsWith(".jpg") || lowerName.endsWith(".jpeg");
+                    })
+                    .sort();
+                return names.length ? names[0] : null;
+            }
+
+            async function detectZipContentType(blob) {
+                if (!window.JSZip) {
+                    throw new Error("ZIP support is unavailable.");
+                }
+                const zip = await window.JSZip.loadAsync(blob);
+                if (getFirstGlbEntryNameFromZip(zip)) {
+                    return "model";
+                }
+                if (getFirstEnvEntryNameFromZip(zip)) {
+                    return "env";
+                }
+                return null;
+            }
+
             async function extractFirstGlbFromZipBlob(blob) {
                 if (!window.JSZip) {
                     throw new Error("ZIP support is unavailable.");
@@ -393,6 +420,19 @@
                 return { blob: glbBlob, entryName };
             }
 
+            async function extractFirstEnvFromZipBlob(blob) {
+                if (!window.JSZip) {
+                    throw new Error("ZIP support is unavailable.");
+                }
+                const zip = await window.JSZip.loadAsync(blob);
+                const entryName = getFirstEnvEntryNameFromZip(zip);
+                if (!entryName) {
+                    throw new Error("ZIP does not contain an HDR or JPG file.");
+                }
+                const envBlob = await zip.files[entryName].async("blob");
+                return { blob: envBlob, entryName };
+            }
+
             function extractNameFromZipEntry(entryName) {
                 const filename = entryName.split("/").pop() || entryName;
                 const skuId = extractSkuId(filename);
@@ -400,6 +440,11 @@
                     return skuId;
                 }
                 return filename.replace(/\.glb$/i, "") || "remote-model";
+            }
+
+            function extractEnvNameFromZipEntry(entryName) {
+                const filename = entryName.split("/").pop() || entryName;
+                return filename.replace(/\.(hdr|jpg|jpeg)$/i, "") || "environment";
             }
 
             function upsertAsset({ url, name, revokable = false }) {
@@ -569,6 +614,10 @@
                 return lowerName.endsWith(".hdr") || lowerName.endsWith(".jpg") || lowerName.endsWith(".jpeg");
             }
 
+            function isEnvZipFile(file) {
+                return isZipFile(file);
+            }
+
             function addEnvFile(file) {
                 if (!isEnvFile(file)) {
                     return;
@@ -580,14 +629,31 @@
                 updateEnv();
             }
 
-            function addEnvFiles(fileList) {
-                const files = Array.from(fileList || []).filter(isEnvFile);
+            function addEnvBlob(name, blob) {
+                const url = URL.createObjectURL(blob);
+                envs.push({ url, name, revokable: true });
+                currentEnv = envs.length - 1;
+                updateEnv();
+            }
+
+            async function addEnvFiles(fileList) {
+                const files = Array.from(fileList || []).filter((file) => isEnvFile(file) || isEnvZipFile(file));
                 if (!files.length) {
                     return;
                 }
-                files.forEach((file) => {
-                    addEnvFile(file);
-                });
+                for (const file of files) {
+                    if (isEnvFile(file)) {
+                        addEnvFile(file);
+                        continue;
+                    }
+                    try {
+                        const extracted = await extractFirstEnvFromZipBlob(file);
+                        const name = extractEnvNameFromZipEntry(extracted.entryName);
+                        addEnvBlob(name, extracted.blob);
+                    } catch (error) {
+                        showToast(error.message || "Unable to extract environment from ZIP.");
+                    }
+                }
             }
             
             const modelViewer = document.querySelector('model-viewer');
@@ -734,13 +800,28 @@
                 }
             });
 
-            window.addEventListener('drop', (event) => {
+            window.addEventListener('drop', async (event) => {
                 event.preventDefault();
                 dragCounter = 0;
                 hideDropzone();
                 const files = Array.from(event.dataTransfer.files || []);
-                const modelFiles = files.filter((file) => isGlbFile(file) || isZipFile(file));
+                const modelFiles = files.filter(isGlbFile);
                 const envFiles = files.filter(isEnvFile);
+                const zipFiles = files.filter(isZipFile);
+                for (const zipFile of zipFiles) {
+                    try {
+                        const kind = await detectZipContentType(zipFile);
+                        if (kind === "model") {
+                            modelFiles.push(zipFile);
+                        } else if (kind === "env") {
+                            envFiles.push(zipFile);
+                        } else {
+                            showToast("ZIP does not contain a supported model or environment file.");
+                        }
+                    } catch (error) {
+                        showToast(error.message || "Unable to inspect ZIP contents.");
+                    }
+                }
                 if (modelFiles.length) {
                     addDroppedModels(modelFiles);
                 }
