@@ -9,7 +9,8 @@
         <link rel="icon" href="data:,">
 
         <script type="module" src="/lk-model-viewer/static/js/model-viewer.min.js"></script>
-        <script nomodule src="/lk-model-viewer/static/js/model-viewer-umd.min.js"></script>        
+        <script nomodule src="/lk-model-viewer/static/js/model-viewer-umd.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
         <style>
 
             #test-controls-container {
@@ -199,7 +200,7 @@
                 <div>
                     <button id="glb-browse-button" type="button">Browse</button>
                     <button id="glb-url-button" type="button">URL</button>
-                    <input id="glb-file-input" type="file" accept=".glb,model/gltf-binary" hidden multiple>
+                    <input id="glb-file-input" type="file" accept=".glb,.zip,model/gltf-binary,application/zip" hidden multiple>
                 </div>
             </div>
             <div id="env-controls" class="test-controls">
@@ -252,9 +253,9 @@
                 auto-camera-target="bottom">
             </model-viewer>
         </div>
-        <div id="dropzone-target">
-            <div id="dropzone-message">Drop GLB/HDR/JPG here!</div>
-        </div>
+            <div id="dropzone-target">
+                <div id="dropzone-message">Drop GLB/ZIP/HDR/JPG here!</div>
+            </div>
         <div id="fullscreen-loader" aria-hidden="true">
             <img src="/lk-model-viewer/static/image/loading.gif" alt="Loading">
         </div>
@@ -347,6 +348,60 @@
                 return file.type === "model/gltf-binary" || lowerName.endsWith(".glb");
             }
 
+            function isZipFile(file) {
+                if (!file) return false;
+                const lowerName = file.name.toLowerCase();
+                return file.type === "application/zip" || lowerName.endsWith(".zip");
+            }
+
+            function isValidModelUrl(urlString) {
+                try {
+                    const url = new URL(urlString, window.location.href);
+                    const pathname = url.pathname.toLowerCase();
+                    return pathname.endsWith(".glb") || pathname.endsWith(".zip");
+                } catch {
+                    return false;
+                }
+            }
+
+            function isZipUrl(urlString) {
+                try {
+                    const url = new URL(urlString, window.location.href);
+                    return url.pathname.toLowerCase().endsWith(".zip");
+                } catch {
+                    return false;
+                }
+            }
+
+            function getFirstGlbEntryNameFromZip(zip) {
+                const names = Object.keys(zip.files)
+                    .filter((name) => !zip.files[name].dir && name.toLowerCase().endsWith(".glb"))
+                    .sort();
+                return names.length ? names[0] : null;
+            }
+
+            async function extractFirstGlbFromZipBlob(blob) {
+                if (!window.JSZip) {
+                    throw new Error("ZIP support is unavailable.");
+                }
+                const zip = await window.JSZip.loadAsync(blob);
+                const entryName = getFirstGlbEntryNameFromZip(zip);
+                if (!entryName) {
+                    throw new Error("ZIP does not contain a GLB file.");
+                }
+                const glbBlob = await zip.files[entryName].async("blob");
+                return { blob: glbBlob, entryName };
+            }
+
+            function extractNameFromZipEntry(entryName) {
+                const filename = entryName.split("/").pop() || entryName;
+                const skuId = extractSkuId(filename);
+                if (skuId) {
+                    return skuId;
+                }
+                return filename.replace(/\.glb$/i, "") || "remote-model";
+            }
+
             function upsertAsset({ url, name, revokable = false }) {
                 const existingIndex = assets.findIndex((asset) => asset.url === url || asset.name === name);
                 const nextAsset = { url, name, revokable };
@@ -362,37 +417,43 @@
                 return assets.length - 1;
             }
 
-            function addDroppedModels(fileList) {
-                const files = Array.from(fileList || []).filter(isGlbFile);
+            function addAssetBlob(name, blob) {
+                const url = URL.createObjectURL(blob);
+                return upsertAsset({ url, name, revokable: true });
+            }
+
+            async function addDroppedModels(fileList) {
+                const files = Array.from(fileList || []).filter((file) => isGlbFile(file) || isZipFile(file));
                 if (!files.length) {
                     return;
                 }
                 let firstIndex = null;
-                files.forEach((file) => {
-                    const skuId = extractSkuId(file.name);
-                    if (!skuId) {
-                        return;
+                for (const file of files) {
+                    if (isGlbFile(file)) {
+                        const skuId = extractSkuId(file.name);
+                        if (!skuId) {
+                            continue;
+                        }
+                        const index = addAssetBlob(skuId, file);
+                        if (firstIndex === null) {
+                            firstIndex = index;
+                        }
+                        continue;
                     }
-                    const url = URL.createObjectURL(file);
-                    const name = skuId;
-                    const index = upsertAsset({ url, name, revokable: true });
-                    if (firstIndex === null) {
-                        firstIndex = index;
+                    try {
+                        const extracted = await extractFirstGlbFromZipBlob(file);
+                        const name = extractNameFromZipEntry(extracted.entryName);
+                        const index = addAssetBlob(name, extracted.blob);
+                        if (firstIndex === null) {
+                            firstIndex = index;
+                        }
+                    } catch (error) {
+                        showToast(error.message || "Unable to extract GLB from ZIP.");
                     }
-                });
+                }
                 if (firstIndex !== null) {
                     currentAsset = firstIndex;
                     setupProductUrls();
-                }
-            }
-
-            function isValidGlbUrl(urlString) {
-                try {
-                    const url = new URL(urlString, window.location.href);
-                    const pathname = url.pathname.toLowerCase();
-                    return pathname.endsWith(".glb");
-                } catch {
-                    return false;
                 }
             }
 
@@ -419,8 +480,8 @@
                 if (!trimmed) {
                     return false;
                 }
-                if (!isValidGlbUrl(trimmed)) {
-                    showToast("Please enter a valid .glb URL.");
+                if (!isValidModelUrl(trimmed)) {
+                    showToast("Please enter a valid .glb or .zip URL.");
                     return false;
                 }
                 const name = getNameFromUrl(trimmed);
@@ -435,22 +496,27 @@
                     if (!response.ok) {
                         throw new Error(`HTTP ${response.status}`);
                     }
-                    const blob = await response.blob();
+                    let blob = await response.blob();
+                    let resolvedName = name;
+                    if (isZipUrl(trimmed)) {
+                        const extracted = await extractFirstGlbFromZipBlob(blob);
+                        blob = extracted.blob;
+                        resolvedName = extractNameFromZipEntry(extracted.entryName);
+                    }
                     assetUrl = URL.createObjectURL(blob);
                     revokable = true;
+                    currentAsset = upsertAsset({ url: assetUrl, name: resolvedName, revokable });
+                    setupProductUrls();
+                    return true;
                 } catch (error) {
                     const message = error?.name === "AbortError"
                         ? "Download timed out. Please try again."
-                        : "Unable to download the GLB (likely CORS blocked). Use a CORS-enabled URL or proxy.";
+                        : (error && error.message) || "Unable to download the model (likely CORS blocked). Use a CORS-enabled URL or proxy.";
                     showToast(message);
                     return false;
                 } finally {
                     fullscreenLoader.classList.remove("is-visible");
                 }
-
-                currentAsset = upsertAsset({ url: assetUrl, name, revokable });
-                setupProductUrls();
-                return true;
             }
 
             async function handleSkuQueryParam() {
@@ -612,13 +678,13 @@
             });
 
             urlGlbButton.addEventListener('click', async () => {
-                const input = prompt("Enter a .glb URL or SKU");
+                const input = prompt("Enter a .glb/.zip URL or SKU");
                 if (input != null) {
                     const trimmed = input.trim();
                     if (!trimmed) {
                         return;
                     }
-                    if (isValidGlbUrl(trimmed)) {
+                    if (isValidModelUrl(trimmed)) {
                         await addGlbUrl(trimmed);
                     } else {
                         await addGlbUrl(buildSkuGlbUrl(trimmed));
@@ -673,10 +739,10 @@
                 dragCounter = 0;
                 hideDropzone();
                 const files = Array.from(event.dataTransfer.files || []);
-                const glbFiles = files.filter(isGlbFile);
+                const modelFiles = files.filter((file) => isGlbFile(file) || isZipFile(file));
                 const envFiles = files.filter(isEnvFile);
-                if (glbFiles.length) {
-                    addDroppedModels(glbFiles);
+                if (modelFiles.length) {
+                    addDroppedModels(modelFiles);
                 }
                 if (envFiles.length) {
                     addEnvFiles(envFiles);
